@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "VertexData.h"
 
@@ -13,6 +14,21 @@ public:
 
 	Mesh();
 	~Mesh();
+
+  void getBoundingBox(glm::vec3& minBox, glm::vec3& maxBox)
+  {
+    minBox = glm::vec3(FLT_MAX);
+    maxBox = glm::vec3(-FLT_MAX);
+    for (size_t i = 0; i < vertexData.size(); i++)
+    {
+      auto& vtx = vertexData[i].position;
+      for (int j = 0; j < 3; j++)
+      {
+        minBox[j] = std::min(minBox[j], vtx[j]);
+        maxBox[j] = std::max(maxBox[j], vtx[j]);
+      }
+    }
+  }
 
 	std::vector<VertexData> vertexData;
 	std::vector<unsigned int> indices;

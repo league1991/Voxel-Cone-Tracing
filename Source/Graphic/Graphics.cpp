@@ -144,14 +144,112 @@ void Graphics::initVoxelization()
 
 	const std::vector<GLfloat> texture3D(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize, 0.0f);
 	voxelTexture = new Texture3D(texture3D, voxelTextureSize, voxelTextureSize, voxelTextureSize, true);
+
+  initSparseVoxelization();
 }
+
+void Graphics::initSparseVoxelization() {
+
+  // Initialize node pool
+	m_nodePoolDim = 64;
+  int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
+  int nLevels = 0;
+  int totalVoxels = 0;
+  while (levelVoxels)
+  {
+    totalVoxels += levelVoxels;
+    levelVoxels /= 8;
+    nLevels++;
+  }
+  m_maxNodes = totalVoxels;
+  std::vector<int> voxelData(totalVoxels);
+  for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
+  {
+    m_nodePoolTextures[i] = std::shared_ptr<TextureBuffer>(new TextureBuffer(voxelData));
+  }
+
+  // Initialize brick pool
+  m_brickPoolDim = 70;
+  m_brickPoolTextures[BRICK_POOL_COLOR] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_NORMAL] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_IRRADIANCE] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  int brickPoolHalfDim = m_brickPoolDim / 2;
+  m_brickPoolTextures[BRICK_POOL_COLOR_X] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Y] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Z] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_X_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Y_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Z_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+
+  // Initialize atomic counter
+  int nextFreeNode = 0;
+  m_nextFreeCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(nextFreeNode), GL_STATIC_DRAW, &nextFreeNode));
+
+  // Init indirect draw command buffer
+  IndirectDrawCommand indirectCommand;
+  indirectCommand.baseInstanceIdx = 0;
+  indirectCommand.firstVertexIdx = 0;
+  indirectCommand.numPrimitives = 1;
+  indirectCommand.numVertices = totalVoxels;
+  m_nodePoolDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+
+  MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePool.vert");
+  MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeigh.vert");
+}
+
+void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
+{
+  glColorMask(false, false, false, false);
+  MaterialStore& matStore = MaterialStore::getInstance();
+
+  // Because opengl only supports 8 texture units per draw, at least 2 draws are needed for 9 textures
+  // Clear node pool
+  std::string nodePoolNames[] = {
+	  "nodePool_next",
+	  "nodePool_color",
+	  "nodePool_normal",
+	  "nodePool_X",
+	  "nodePool_X_neg",
+	  "nodePool_Y",
+	  "nodePool_Y_neg",
+	  "nodePool_Z",
+	  "nodePool_Z_neg",
+  };
+  Material* clearShader = matStore.findMaterialWithName("clearNodePool");
+  glUseProgram(clearShader->program);  
+  for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
+  {
+    m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
+    glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+  }
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
+  glDrawArraysIndirect(GL_POINTS, 0);
+  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+  // Clear node pool neighbour
+  clearShader = matStore.findMaterialWithName("clearNodePoolNeigh");
+  glUseProgram(clearShader->program);
+  for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
+  {
+	  m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
+	  glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+  }
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
+  glDrawArraysIndirect(GL_POINTS, 0);
+  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
 {
+  sparseVoxelize(renderingScene, clearVoxelization);
+
 	if (clearVoxelization) {
 		GLfloat clearColor[4] = { 0, 0, 0, 0 };
 		voxelTexture->Clear(clearColor);
 	}
+
+  renderingScene.getBoundingBox(sceneBoxMin, sceneBoxMax);
 
 	Material * material = voxelizationMaterial;
 

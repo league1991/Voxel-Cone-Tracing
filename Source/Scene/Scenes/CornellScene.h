@@ -12,6 +12,6 @@ public:
 	void update() override;
 	void init(unsigned int viewportWidth, unsigned int viewportHeight) override;
 	~CornellScene();
+
 private:
-	std::vector<Shape*> shapes;
 };

@@ -24,6 +24,11 @@ public:
 		const int width, const int height, const int depth,
 		const bool generateMipmaps = true
 	);
+
+	Texture3D(
+		const int width, const int height, const int depth,
+		const bool generateMipmaps = true
+	);
 private:
 	int width, height, depth;
 	std::vector<GLfloat> clearData;

@@ -71,7 +71,7 @@ void FirstPersonController::update() {
   camera->position = mix(camera->position, targetCamera->position, glm::clamp(Time::deltaTime * CAMERA_POSITION_INTERPOLATION_SPEED, 0.0, 1.0));
 
   // Reset mouse position for next update iteration.
-  glfwSetCursorPos(window, xwidth / 2, yheight / 2);
+  //glfwSetCursorPos(window, xwidth / 2, yheight / 2);
 
   // Update view (camera) matrix.
   camera->updateViewMatrix();

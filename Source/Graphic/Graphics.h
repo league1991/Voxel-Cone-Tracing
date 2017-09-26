@@ -12,6 +12,8 @@
 #include "Camera\OrthographicCamera.h"
 #include "../Shape/Mesh.h"
 #include "Texture3D.h"
+#include "TextureBuffer.h"
+#include "IndexBuffer.h"
 
 class MeshRenderer;
 class Shape;
@@ -79,6 +81,58 @@ private:
 	// ----------------
 	Material * voxelConeTracingMaterial;
 
+  // ----------------
+  // Sparse Voxel Tree
+  // ----------------
+  void initSparseVoxelization();
+  void sparseVoxelize(Scene & renderingScene, bool clearVoxelizationFirst = true);
+  struct IndirectDrawCommand {
+    uint32_t numVertices;
+    uint32_t numPrimitives;
+    uint32_t firstVertexIdx;
+    uint32_t baseInstanceIdx;
+  };
+  // Node pool
+  enum NodePoolData
+  {
+    NODE_POOL_NEXT,
+    NODE_POOL_COLOR,
+    NODE_POOL_NORMAL,
+    NODE_POOL_NEIGH_X,
+    NODE_POOL_NEIGH_X_NEG,
+    NODE_POOL_NEIGH_Y,
+    NODE_POOL_NEIGH_Y_NEG,
+    NODE_POOL_NEIGH_Z,
+    NODE_POOL_NEIGH_Z_NEG,
+    NODE_POOL_NUM_TEXTURES
+  };
+  std::shared_ptr<TextureBuffer> m_nodePoolTextures[NODE_POOL_NUM_TEXTURES];
+  int m_nodePoolDim;
+  int m_maxNodes; // max nodes = 1 + 8 + 8^2 + ... + nodePoolDim ^ 3
+  std::shared_ptr<IndexBuffer> m_nextFreeCounter;
+
+  // Brick pool
+  enum BrickPoolData {
+	  BRICK_POOL_COLOR,
+	  BRICK_POOL_COLOR_X,
+	  BRICK_POOL_COLOR_X_NEG,
+	  BRICK_POOL_COLOR_Y,
+	  BRICK_POOL_COLOR_Y_NEG,
+	  BRICK_POOL_COLOR_Z,
+	  BRICK_POOL_COLOR_Z_NEG,
+	  BRICK_POOL_IRRADIANCE,
+	  BRICK_POOL_NORMAL,
+	  BRICK_POOL_NUM_TEXTURES
+  };
+  int m_brickPoolDim; // brick pool voxels = dim * dim * dim
+  std::shared_ptr<Texture3D> m_brickPoolTextures[BRICK_POOL_NUM_TEXTURES];
+
+  // Draw command
+  std::shared_ptr<IndexBuffer> m_nodePoolDrawCommandBuffer;
+
+  glm::vec3 sceneBoxMin;
+  glm::vec3 sceneBoxMax;
+
 	// ----------------
 	// Voxelization.
 	// ----------------
@@ -87,6 +141,7 @@ private:
 	OrthographicCamera voxelCamera;
 	Material * voxelizationMaterial;
 	Texture3D * voxelTexture = nullptr;
+
 	void initVoxelization();
 	void voxelize(Scene & renderingScene, bool clearVoxelizationFirst = true);
 

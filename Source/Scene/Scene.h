@@ -8,6 +8,7 @@
 #include "../Graphic/Camera/Camera.h"
 
 class MeshRenderer;
+class Shape;
 
 /// <summary> The scene represents a 3D world populated with renderers, cameras and lights. </summary>
 class Scene {
@@ -26,4 +27,8 @@ public:
 
 	/// <summary> Creates a new scene. Does not initialize it. </summary>
 	Scene() {}
+
+  void getBoundingBox(glm::vec3& boxMin, glm::vec3& boxMax);
+
+  std::vector<Shape*> shapes;
 };

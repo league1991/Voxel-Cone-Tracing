@@ -181,6 +181,7 @@
     <ClInclude Include="Source\Graphic\Camera\PerspectiveCamera.h" />
     <ClInclude Include="Source\Graphic\FBO\FBO.h" />
     <ClInclude Include="Source\Graphic\Graphics.h" />
+    <ClInclude Include="Source\Graphic\IndexBuffer.h" />
     <ClInclude Include="Source\Graphic\Lighting\PointLight.h" />
     <ClInclude Include="Source\Graphic\Material\Material.h" />
     <ClInclude Include="Source\Graphic\Material\MaterialSetting.h" />
@@ -189,6 +190,7 @@
     <ClInclude Include="Source\Graphic\Renderer\MeshRenderer.h" />
     <ClInclude Include="Source\Graphic\Texture2D.h" />
     <ClInclude Include="Source\Graphic\Texture3D.h" />
+    <ClInclude Include="Source\Graphic\TextureBuffer.h" />
     <ClInclude Include="Source\Scene\Scene.h" />
     <ClInclude Include="Source\Scene\ScenePack.h" />
     <ClInclude Include="Source\Scene\Scenes\GlassScene.h" />
@@ -215,12 +217,15 @@
     <ClCompile Include="Source\Graphic\Camera\PerspectiveCamera.cpp" />
     <ClCompile Include="Source\Graphic\FBO\FBO.cpp" />
     <ClCompile Include="Source\Graphic\Graphics.cpp" />
+    <ClCompile Include="Source\Graphic\IndexBuffer.cpp" />
     <ClCompile Include="Source\Graphic\Material\Material.cpp" />
     <ClCompile Include="Source\Graphic\Material\MaterialStore.cpp" />
     <ClCompile Include="Source\Graphic\Material\Shader.cpp" />
     <ClCompile Include="Source\Graphic\Renderer\MeshRenderer.cpp" />
     <ClCompile Include="Source\Graphic\Texture2D.cpp" />
     <ClCompile Include="Source\Graphic\Texture3D.cpp" />
+    <ClCompile Include="Source\Graphic\TextureBuffer.cpp" />
+    <ClCompile Include="Source\Scene\Scene.cpp" />
     <ClCompile Include="Source\Scene\Scenes\GlassScene.cpp" />
     <ClCompile Include="Source\Scene\Scenes\CornellScene.cpp" />
     <ClCompile Include="Source\Scene\Scenes\DragonScene.cpp" />
@@ -236,6 +241,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Libraries\AntTweakBar.dll" />
+    <None Include="Shaders\SparseVoxelOctree\clearNodePool.vert" />
+    <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeigh.vert" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.frag" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.vert" />
     <None Include="Shaders\Voxelization\Visualization\voxel_visualization.frag" />

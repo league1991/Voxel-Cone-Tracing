@@ -13,5 +13,4 @@ public:
 	void init(unsigned int viewportWidth, unsigned int viewportHeight) override;
 	~GlassScene();
 private:
-	std::vector<Shape*> shapes;
 };

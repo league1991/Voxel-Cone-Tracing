@@ -27,3 +27,6 @@
 *.exe
 *.out
 *.app
+/CodeGraphData/Result_solution/xml
+/Debug
+/*.csv

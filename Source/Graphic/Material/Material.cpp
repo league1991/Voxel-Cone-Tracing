@@ -22,7 +22,7 @@ Material::Material(
 	Shader * tessControlShader) : name(_name)
 {
 	assert(vertexShader != nullptr);
-	assert(fragmentShader != nullptr);
+	//assert(fragmentShader != nullptr);
 
 	GLuint vertexShaderID, fragmentShaderID, geometryShaderID, tessEvaluationShaderID, tessControlShaderID;
 	program = glCreateProgram();
@@ -33,9 +33,12 @@ Material::Material(
 	glAttachShader(program, vertexShaderID);
 
 	// Fragment shader.
-	assert(fragmentShader->shaderType == Shader::ShaderType::FRAGMENT);
-	fragmentShaderID = fragmentShader->compile();
-	glAttachShader(program, fragmentShaderID);
+  if (fragmentShader != nullptr)
+  {
+	  assert(fragmentShader->shaderType == Shader::ShaderType::FRAGMENT);
+	  fragmentShaderID = fragmentShader->compile();
+	  glAttachShader(program, fragmentShaderID);
+  }
 
 	// Geometry shader.
 	if (geometryShader != nullptr) {

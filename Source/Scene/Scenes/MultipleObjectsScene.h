@@ -14,5 +14,4 @@ public:
 	void init(unsigned int viewportWidth, unsigned int viewportHeight) override;
 	~MultipleObjectsScene();
 private:
-	std::vector<Shape*> shapes;
 };
