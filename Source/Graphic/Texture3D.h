@@ -27,7 +27,7 @@ public:
 
 	Texture3D(
 		const int width, const int height, const int depth,
-		const bool generateMipmaps = true
+		const bool generateMipmaps, GLint internalFormat, GLint externalFormat
 	);
 private:
 	int width, height, depth;

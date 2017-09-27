@@ -241,6 +241,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Libraries\AntTweakBar.dll" />
+    <None Include="Shaders\SparseVoxelOctree\clearBrickPool.vert" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePool.vert" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeigh.vert" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.frag" />

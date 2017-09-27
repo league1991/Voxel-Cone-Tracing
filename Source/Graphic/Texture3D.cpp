@@ -27,7 +27,8 @@ Texture3D::Texture3D(const std::vector<GLfloat> & textureBuffer, const int _widt
 	glBindTexture(GL_TEXTURE_3D, 0);
 }
 
-Texture3D::Texture3D(const int _width, const int _height, const int _depth, const bool generateMipmaps) :
+Texture3D::Texture3D(const int _width, const int _height, const int _depth, const bool generateMipmaps,
+	GLint internalFormat, GLint externalFormat) :
 	width(_width), height(_height), depth(_depth), clearData(4 * _width * _height * _depth, 0.0f)
 {
 	// Generate texture on GPU.
@@ -49,7 +50,8 @@ Texture3D::Texture3D(const int _width, const int _height, const int _depth, cons
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	// Upload texture buffer.
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	//glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage3D(GL_TEXTURE_3D, 0, internalFormat, width, height, depth, 0, externalFormat, GL_UNSIGNED_BYTE, nullptr);
 	glBindTexture(GL_TEXTURE_3D, 0);
 }
 

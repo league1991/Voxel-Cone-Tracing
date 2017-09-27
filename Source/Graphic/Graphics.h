@@ -114,21 +114,31 @@ private:
   // Brick pool
   enum BrickPoolData {
 	  BRICK_POOL_COLOR,
+	  BRICK_POOL_IRRADIANCE,
+	  BRICK_POOL_NORMAL,
 	  BRICK_POOL_COLOR_X,
 	  BRICK_POOL_COLOR_X_NEG,
 	  BRICK_POOL_COLOR_Y,
 	  BRICK_POOL_COLOR_Y_NEG,
 	  BRICK_POOL_COLOR_Z,
 	  BRICK_POOL_COLOR_Z_NEG,
-	  BRICK_POOL_IRRADIANCE,
-	  BRICK_POOL_NORMAL,
 	  BRICK_POOL_NUM_TEXTURES
   };
   int m_brickPoolDim; // brick pool voxels = dim * dim * dim
   std::shared_ptr<Texture3D> m_brickPoolTextures[BRICK_POOL_NUM_TEXTURES];
 
+  // Fragment Texure
+  enum FragmentTexData {
+	  FRAG_TEX_COLOR,
+	  FRAG_TEX_NORMAL,
+	  FRAG_TEX_NUM_TEXTURES,
+  };
+  std::shared_ptr<Texture3D> m_fragmentTextures[FRAG_TEX_NUM_TEXTURES];
+
   // Draw command
   std::shared_ptr<IndexBuffer> m_nodePoolDrawCommandBuffer;
+  std::shared_ptr<IndexBuffer> m_brickPoolDrawCommandBuffer;
+  std::shared_ptr<IndexBuffer> m_fragmentTexDrawCommandBuffer;
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

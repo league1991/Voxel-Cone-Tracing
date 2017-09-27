@@ -170,16 +170,20 @@ void Graphics::initSparseVoxelization() {
 
   // Initialize brick pool
   m_brickPoolDim = 70;
-  m_brickPoolTextures[BRICK_POOL_COLOR] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_NORMAL] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_IRRADIANCE] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_NORMAL] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_IRRADIANCE] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false, GL_RGBA8, GL_RGBA));
   int brickPoolHalfDim = m_brickPoolDim / 2;
-  m_brickPoolTextures[BRICK_POOL_COLOR_X] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_COLOR_Y] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_COLOR_Z] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_COLOR_X_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_COLOR_Y_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
-  m_brickPoolTextures[BRICK_POOL_COLOR_Z_NEG] = std::shared_ptr<Texture3D>(new Texture3D( m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, false));
+  m_brickPoolTextures[BRICK_POOL_COLOR_X] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Y] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Z] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_COLOR_X_NEG] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Y_NEG] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+  m_brickPoolTextures[BRICK_POOL_COLOR_Z_NEG] = std::shared_ptr<Texture3D>(new Texture3D( brickPoolHalfDim, brickPoolHalfDim, brickPoolHalfDim, false, GL_RGBA8, GL_RGBA));
+
+  // Initialize fragment texture
+  m_fragmentTextures[FRAG_TEX_COLOR] = std::shared_ptr<Texture3D>(new  Texture3D(m_nodePoolDim, m_nodePoolDim, m_nodePoolDim, false, GL_R32UI, GL_RED_INTEGER));
+  m_fragmentTextures[FRAG_TEX_NORMAL] = std::shared_ptr<Texture3D>(new  Texture3D(m_nodePoolDim, m_nodePoolDim, m_nodePoolDim, false, GL_R32UI, GL_RED_INTEGER));
 
   // Initialize atomic counter
   int nextFreeNode = 0;
@@ -192,9 +196,14 @@ void Graphics::initSparseVoxelization() {
   indirectCommand.numPrimitives = 1;
   indirectCommand.numVertices = totalVoxels;
   m_nodePoolDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
-
+  indirectCommand.numVertices = m_brickPoolDim * m_brickPoolDim * m_brickPoolDim;
+  m_brickPoolDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+  indirectCommand.numVertices = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
+  m_fragmentTexDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+  
   MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePool.vert");
   MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeigh.vert");
+  MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPool.vert");
 }
 
 void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
@@ -235,6 +244,22 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 	  glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
   }
   glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
+  glDrawArraysIndirect(GL_POINTS, 0);
+  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+  // Clear brick pool
+  clearShader = matStore.findMaterialWithName("clearBrickPool");
+  glUseProgram(clearShader->program);
+  std::string brickPoolNames[3] = {"brickPool_color", "brickPool_irradiance","brickPool_normal"};
+  int brickPoolIndices[3] = {BRICK_POOL_COLOR, BRICK_POOL_IRRADIANCE, BRICK_POOL_NORMAL};
+  for (int i = 0; i < 3; i++)
+  {
+	  int bIdx = brickPoolIndices[i];
+	  m_brickPoolTextures[bIdx]->Activate(clearShader->program, brickPoolNames[i], i);
+	  glBindImageTexture(i, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+  }
+  glUniform1i(glGetUniformLocation(clearShader->program, "clearMode"), 0);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_brickPoolDrawCommandBuffer->m_bufferID);
   glDrawArraysIndirect(GL_POINTS, 0);
   glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
