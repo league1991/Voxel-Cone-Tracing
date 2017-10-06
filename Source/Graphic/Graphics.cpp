@@ -162,10 +162,9 @@ void Graphics::initSparseVoxelization() {
     nLevels++;
   }
   m_maxNodes = totalVoxels;
-  std::vector<int> voxelData(totalVoxels);
   for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
   {
-    m_nodePoolTextures[i] = std::shared_ptr<TextureBuffer>(new TextureBuffer(voxelData));
+    m_nodePoolTextures[i] = std::shared_ptr<TextureBuffer>(new TextureBuffer(totalVoxels * sizeof(int)));
   }
 
   // Initialize brick pool
@@ -185,9 +184,20 @@ void Graphics::initSparseVoxelization() {
   m_fragmentTextures[FRAG_TEX_COLOR] = std::shared_ptr<Texture3D>(new  Texture3D(m_nodePoolDim, m_nodePoolDim, m_nodePoolDim, false, GL_R32UI, GL_RED_INTEGER));
   m_fragmentTextures[FRAG_TEX_NORMAL] = std::shared_ptr<Texture3D>(new  Texture3D(m_nodePoolDim, m_nodePoolDim, m_nodePoolDim, false, GL_R32UI, GL_RED_INTEGER));
 
+  // Initialize fragment list
+  int fragmentListSize = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim * 2 * sizeof(int);
+  GLint maxTexBufferSize = 0;
+  glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &maxTexBufferSize);
+  if (maxTexBufferSize < fragmentListSize)
+  {
+	  fragmentListSize = maxTexBufferSize;
+  }
+  m_fragmentList = std::shared_ptr<TextureBuffer>(new TextureBuffer(fragmentListSize));
+
   // Initialize atomic counter
-  int nextFreeNode = 0;
-  m_nextFreeCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(nextFreeNode), GL_STATIC_DRAW, &nextFreeNode));
+  int counterVal = 0;
+  m_nextFreeCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
+  m_fragmentListCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
 
   // Init indirect draw command buffer
   IndirectDrawCommand indirectCommand;
@@ -201,9 +211,25 @@ void Graphics::initSparseVoxelization() {
   indirectCommand.numVertices = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
   m_fragmentTexDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   
-  MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePool.vert");
-  MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeigh.vert");
-  MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPool.vert");
+  MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("clearFragmentTex", "SparseVoxelOctree\\clearFragmentTexVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("voxelize", "SparseVoxelOctree\\VoxelizeVert.shader", "SparseVoxelOctree\\VoxelizeFrag.shader", "SparseVoxelOctree\\VoxelizeGeom.shader");
+}
+
+glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
+{
+	renderingScene.getBoundingBox(sceneBoxMin, sceneBoxMax);
+	glm::vec3 deltaBox = sceneBoxMax - sceneBoxMin;
+	glm::vec3 sumBox = sceneBoxMin + sceneBoxMax;
+	glm::vec3 scaleVal(1 / deltaBox.x, 1 / deltaBox.y, 1 / deltaBox.z);
+	glm::mat4 voxelTransform(1);
+	voxelTransform[0][0] = 2 * scaleVal[0];
+	voxelTransform[1][1] = 2 * scaleVal[1];
+	voxelTransform[2][2] = 2 * scaleVal[2];
+	voxelTransform[3] = glm::vec4(-scaleVal.x*sumBox.x, -scaleVal.y*sumBox.y, -scaleVal.z*sumBox.z, 1.f);
+	return voxelTransform;
 }
 
 void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
@@ -211,57 +237,151 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   glColorMask(false, false, false, false);
   MaterialStore& matStore = MaterialStore::getInstance();
 
-  // Because opengl only supports 8 texture units per draw, at least 2 draws are needed for 9 textures
-  // Clear node pool
-  std::string nodePoolNames[] = {
-	  "nodePool_next",
-	  "nodePool_color",
-	  "nodePool_normal",
-	  "nodePool_X",
-	  "nodePool_X_neg",
-	  "nodePool_Y",
-	  "nodePool_Y_neg",
-	  "nodePool_Z",
-	  "nodePool_Z_neg",
-  };
-  Material* clearShader = matStore.findMaterialWithName("clearNodePool");
-  glUseProgram(clearShader->program);  
-  for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
-  {
-    m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
-    glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
-  }
-  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
-  glDrawArraysIndirect(GL_POINTS, 0);
-  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  clearNodePool(renderingScene);
 
-  // Clear node pool neighbour
-  clearShader = matStore.findMaterialWithName("clearNodePoolNeigh");
-  glUseProgram(clearShader->program);
-  for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
-  {
-	  m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
-	  glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
-  }
-  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
-  glDrawArraysIndirect(GL_POINTS, 0);
-  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  clearBrickPool(renderingScene);
 
-  // Clear brick pool
-  clearShader = matStore.findMaterialWithName("clearBrickPool");
-  glUseProgram(clearShader->program);
-  std::string brickPoolNames[3] = {"brickPool_color", "brickPool_irradiance","brickPool_normal"};
-  int brickPoolIndices[3] = {BRICK_POOL_COLOR, BRICK_POOL_IRRADIANCE, BRICK_POOL_NORMAL};
-  for (int i = 0; i < 3; i++)
-  {
-	  int bIdx = brickPoolIndices[i];
-	  m_brickPoolTextures[bIdx]->Activate(clearShader->program, brickPoolNames[i], i);
-	  glBindImageTexture(i, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
-  }
-  glUniform1i(glGetUniformLocation(clearShader->program, "clearMode"), 0);
-  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_brickPoolDrawCommandBuffer->m_bufferID);
-  glDrawArraysIndirect(GL_POINTS, 0);
-  glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  clearFragmentTex(renderingScene);
+
+  voxelizeScene(renderingScene);
+}
+
+void Graphics::clearNodePool(Scene & renderingScene) {
+	MaterialStore& matStore = MaterialStore::getInstance();
+	// Clear node pool
+	// Because opengl only supports 8 texture units per draw, at least 2 draws are needed for 9 textures
+	std::string nodePoolNames[] = {
+		"nodePool_next",
+		"nodePool_color",
+		"nodePool_normal",
+		"nodePool_X",
+		"nodePool_X_neg",
+		"nodePool_Y",
+		"nodePool_Y_neg",
+		"nodePool_Z",
+		"nodePool_Z_neg",
+	};
+	Material* clearShader = matStore.findMaterialWithName("clearNodePool");
+	glUseProgram(clearShader->program);
+	for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
+	{
+		m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
+		glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	}
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	// Clear node pool neighbour
+	clearShader = matStore.findMaterialWithName("clearNodePoolNeigh");
+	glUseProgram(clearShader->program);
+	for (int i = 0; i < NODE_POOL_NUM_TEXTURES; i++)
+	{
+		m_nodePoolTextures[i]->Activate(clearShader->program, nodePoolNames[i], i);
+		glBindImageTexture(i, m_nodePoolTextures[i]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	}
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::clearBrickPool(Scene & renderingScene) {
+	// Clear brick pool
+	MaterialStore& matStore = MaterialStore::getInstance();
+	auto clearShader = matStore.findMaterialWithName("clearBrickPool");
+	glUseProgram(clearShader->program);
+	std::string brickPoolNames[3] = { "brickPool_color", "brickPool_irradiance","brickPool_normal" };
+	int brickPoolIndices[3] = { BRICK_POOL_COLOR, BRICK_POOL_IRRADIANCE, BRICK_POOL_NORMAL };
+	for (int i = 0; i < 3; i++)
+	{
+		int bIdx = brickPoolIndices[i];
+		m_brickPoolTextures[bIdx]->Activate(clearShader->program, brickPoolNames[i], i);
+		glBindImageTexture(i, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	}
+	glUniform1i(glGetUniformLocation(clearShader->program, "clearMode"), 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_brickPoolDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::clearFragmentTex(Scene & renderingScene) {
+	// Clear fragment texture
+	MaterialStore& matStore = MaterialStore::getInstance();
+	auto clearShader = matStore.findMaterialWithName("clearFragmentTex");
+	glUseProgram(clearShader->program);
+	std::string fragmentTexNames[2] = { "voxelFragTex_color", "voxelFragTex_normal" };
+	int fragmentTexIndices[2] = { FRAG_TEX_COLOR, FRAG_TEX_NORMAL };
+	for (int i = 0; i < 2; i++)
+	{
+		int fIdx = fragmentTexIndices[i];
+		m_fragmentTextures[fIdx]->Activate(clearShader->program, fragmentTexNames[i], i);
+		glBindImageTexture(i, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	}
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentTexDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::voxelizeScene(Scene & renderingScene) {
+	// Voxelize
+	MaterialStore& matStore = MaterialStore::getInstance();
+	auto voxelizeShader = matStore.findMaterialWithName("voxelize");
+	glUseProgram(voxelizeShader->program);
+
+	int textureUnitIdx = 0;
+	std::string fragmentTexNames[2] = { "voxelFragTex_color", "voxelFragTex_normal" };
+	int fragmentTexIndices[2] = { FRAG_TEX_COLOR, FRAG_TEX_NORMAL };
+	for (textureUnitIdx = 0; textureUnitIdx < 2; textureUnitIdx++)
+	{
+		int fIdx = fragmentTexIndices[textureUnitIdx];
+		m_fragmentTextures[fIdx]->Activate(voxelizeShader->program, fragmentTexNames[textureUnitIdx], textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	}
+	m_fragmentList->Activate(voxelizeShader->program, "voxelFragList_position", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+
+	glm::mat4 viewMatrix = glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+	glUniformMatrix4fv(glGetUniformLocation(voxelizeShader->program, "V"), 1, GL_FALSE, glm::value_ptr(viewMatrix));
+	glm::mat4 viewMats[3];
+	// View Matrix for right camera
+	viewMats[0][0] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+	viewMats[0][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	viewMats[0][2] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	viewMats[0][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+	// View Matrix for top camera
+	viewMats[1][0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	viewMats[1][1] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+	viewMats[1][2] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	viewMats[1][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+	// View Matrix for far camera
+	viewMats[2][0] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
+	viewMats[2][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+	viewMats[2][2] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+	viewMats[2][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+	glUniformMatrix4fv(glGetUniformLocation(voxelizeShader->program, "viewProjs[0]"), 3, GL_FALSE, glm::value_ptr(viewMats[0]));
+
+	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
+	glUniformMatrix4fv(glGetUniformLocation(voxelizeShader->program, "voxelGridTransformI"), 1, GL_FALSE, glm::value_ptr(voxelGridTransformI));
+
+	glUniform1ui(glGetUniformLocation(voxelizeShader->program, "voxelTexSize"), m_nodePoolDim);
+
+	int bindingPoint = 0;
+	glGetActiveAtomicCounterBufferiv(voxelizeShader->program, 0, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingPoint);
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingPoint, m_fragmentListCounter->m_bufferID);
+	GLuint *ptr = (GLuint *)glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	ptr[0] = 0;
+	glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, m_nodePoolDim, m_nodePoolDim);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+	//uploadLighting(renderingScene, voxelizeShader->program);
+	renderQueue(renderingScene.renderers, voxelizeShader->program, true);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
 }
 
 
@@ -273,9 +393,6 @@ void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
 		GLfloat clearColor[4] = { 0, 0, 0, 0 };
 		voxelTexture->Clear(clearColor);
 	}
-
-  renderingScene.getBoundingBox(sceneBoxMin, sceneBoxMax);
-
 	Material * material = voxelizationMaterial;
 
 	glUseProgram(material->program);

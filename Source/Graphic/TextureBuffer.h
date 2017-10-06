@@ -10,14 +10,14 @@
 class TextureBuffer
 {
 public:
-  TextureBuffer(const std::vector<int>& bufferData)
+  TextureBuffer(int sizeOfBytes, char* data = nullptr)
   {
     glGenTextures(1, &m_textureID);
     glBindTexture(GL_TEXTURE_BUFFER, m_textureID);
     
     glGenBuffers(1, &m_bufferID);
     glBindBuffer(GL_TEXTURE_BUFFER, m_bufferID);
-    glBufferData(GL_TEXTURE_BUFFER, bufferData.size() * sizeof(int), &bufferData[0], GL_STATIC_DRAW);
+    glBufferData(GL_TEXTURE_BUFFER, sizeOfBytes, data, GL_STATIC_DRAW);
     
     glTextureBuffer(m_textureID, GL_R32UI, m_bufferID);
   }

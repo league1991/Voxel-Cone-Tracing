@@ -241,9 +241,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Libraries\AntTweakBar.dll" />
-    <None Include="Shaders\SparseVoxelOctree\clearBrickPool.vert" />
-    <None Include="Shaders\SparseVoxelOctree\clearNodePool.vert" />
-    <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeigh.vert" />
+    <None Include="Shaders\SparseVoxelOctree\clearBrickPoolVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\clearFragmentTexVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeighVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\clearNodePoolVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelizeFrag.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelizeGeom.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelizeVert.shader" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.frag" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.vert" />
     <None Include="Shaders\Voxelization\Visualization\voxel_visualization.frag" />

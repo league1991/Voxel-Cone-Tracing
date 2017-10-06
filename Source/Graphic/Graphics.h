@@ -75,7 +75,7 @@ private:
 	void uploadCamera(Camera & camera, const GLuint program);
 	void uploadLighting(Scene & renderingScene, const GLuint glProgram) const;
 	void uploadRenderingSettings(const GLuint glProgram) const;
-
+	glm::mat4 getVoxelTransformInverse(Scene & renderingScene);
 	// ----------------
 	// Voxel cone tracing.
 	// ----------------
@@ -86,12 +86,18 @@ private:
   // ----------------
   void initSparseVoxelization();
   void sparseVoxelize(Scene & renderingScene, bool clearVoxelizationFirst = true);
+  void clearNodePool(Scene& renderingScene);
+  void clearBrickPool(Scene& renderingScene);
+  void clearFragmentTex(Scene& renderingScene);
+  void voxelizeScene(Scene& renderingScene);
+
   struct IndirectDrawCommand {
     uint32_t numVertices;
     uint32_t numPrimitives;
     uint32_t firstVertexIdx;
     uint32_t baseInstanceIdx;
   };
+
   // Node pool
   enum NodePoolData
   {
@@ -134,6 +140,10 @@ private:
 	  FRAG_TEX_NUM_TEXTURES,
   };
   std::shared_ptr<Texture3D> m_fragmentTextures[FRAG_TEX_NUM_TEXTURES];
+
+  // Fragment List
+  std::shared_ptr<TextureBuffer> m_fragmentList;
+  std::shared_ptr<IndexBuffer> m_fragmentListCounter;
 
   // Draw command
   std::shared_ptr<IndexBuffer> m_nodePoolDrawCommandBuffer;
