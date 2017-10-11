@@ -76,6 +76,7 @@ private:
 	void uploadLighting(Scene & renderingScene, const GLuint glProgram) const;
 	void uploadRenderingSettings(const GLuint glProgram) const;
 	glm::mat4 getVoxelTransformInverse(Scene & renderingScene);
+	glm::mat4 getVoxelTransform(Scene & renderingScene);
 	// ----------------
 	// Voxel cone tracing.
 	// ----------------
@@ -86,10 +87,13 @@ private:
   // ----------------
   void initSparseVoxelization();
   void sparseVoxelize(Scene & renderingScene, bool clearVoxelizationFirst = true);
+  // sparse voxelize functions
   void clearNodePool(Scene& renderingScene);
   void clearBrickPool(Scene& renderingScene);
   void clearFragmentTex(Scene& renderingScene);
   void voxelizeScene(Scene& renderingScene);
+  void modifyIndirectBuffer(Scene& renderingScene);
+  void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -149,6 +153,8 @@ private:
   std::shared_ptr<IndexBuffer> m_nodePoolDrawCommandBuffer;
   std::shared_ptr<IndexBuffer> m_brickPoolDrawCommandBuffer;
   std::shared_ptr<IndexBuffer> m_fragmentTexDrawCommandBuffer;
+  std::shared_ptr<IndexBuffer> m_modifyIndirectBufferCommandBuffer;
+  std::shared_ptr<TextureBuffer> m_fragmentListDrawCommandBuffer;
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

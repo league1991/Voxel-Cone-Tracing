@@ -62,13 +62,15 @@ void main()
 	uint projAxisIdx = calcProjAxis();
 	vec3 middle = (viewProjs[projAxisIdx] * vec4((In[0].pos + In[1].pos + In[2].pos) / 3.0, 1.0)).xyz;
 	for (int i = 0; i < gl_in.length(); i++) {
-		vec3 projPos = (viewProjs[projAxisIdx] * vec4(In[i].pos, 1.0)).xyz;
+		vec4 projPos = (voxelGridTransformI * vec4(In[i].pos, 1.0));
+		projPos = viewProjs[projAxisIdx] * projPos;
 		// Approximate conservative rasterization
 		//projPos += normalize(projPos - middle) * (voxelSize.x / 2.0);
 
-		gl_Position = vec4(projPos, 1.0);
+		gl_Position = vec4((projPos.xy-0.5)*2, 0.5 , 1.0);
 
-		Out.posTexSpace = (voxelGridTransformI * vec4(In[i].pos, 1.0)).xyz * 0.5 + 0.5;
+		Out.posTexSpace = (voxelGridTransformI * vec4(In[i].pos, 1.0)).xyz;
+		//Out.posTexSpace = (voxelGridTransformI * vec4(In[i].pos, 1.0)).xyz *0.5 + 0.5;
 		//Out.posTexSpace = (inverse(voxelGridTransform) * vec4(In[i].pos, 1.0)).xyz * 0.5 + 0.5;
 		Out.normal = In[i].normal;
 		Out.uv = In[i].uv;

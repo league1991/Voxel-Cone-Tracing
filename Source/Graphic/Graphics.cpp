@@ -48,7 +48,8 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 	// Render.
 	switch (renderingMode) {
 	case RenderingMode::VOXELIZATION_VISUALIZATION:
-		renderVoxelVisualization(renderingScene, viewportWidth, viewportHeight);
+		//renderVoxelVisualization(renderingScene, viewportWidth, viewportHeight);
+		visualizeVoxel(renderingScene, viewportWidth, viewportHeight);
 		break;
 	case RenderingMode::VOXEL_CONE_TRACING:
 		renderScene(renderingScene, viewportWidth, viewportHeight);
@@ -210,12 +211,17 @@ void Graphics::initSparseVoxelization() {
   m_brickPoolDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   indirectCommand.numVertices = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
   m_fragmentTexDrawCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
-  
+  indirectCommand.numVertices = 1;
+  m_modifyIndirectBufferCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+  m_fragmentListDrawCommandBuffer = std::shared_ptr<TextureBuffer>(new TextureBuffer(sizeof(indirectCommand), (char*)&indirectCommand));
+
   MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearFragmentTex", "SparseVoxelOctree\\clearFragmentTexVert.shader");
   MaterialStore::getInstance().AddNewMaterial("voxelize", "SparseVoxelOctree\\VoxelizeVert.shader", "SparseVoxelOctree\\VoxelizeFrag.shader", "SparseVoxelOctree\\VoxelizeGeom.shader");
+  MaterialStore::getInstance().AddNewMaterial("modifyIndirectBuffer", "SparseVoxelOctree\\modifyIndirectBufferVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
@@ -225,10 +231,22 @@ glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
 	glm::vec3 sumBox = sceneBoxMin + sceneBoxMax;
 	glm::vec3 scaleVal(1 / deltaBox.x, 1 / deltaBox.y, 1 / deltaBox.z);
 	glm::mat4 voxelTransform(1);
-	voxelTransform[0][0] = 2 * scaleVal[0];
-	voxelTransform[1][1] = 2 * scaleVal[1];
-	voxelTransform[2][2] = 2 * scaleVal[2];
-	voxelTransform[3] = glm::vec4(-scaleVal.x*sumBox.x, -scaleVal.y*sumBox.y, -scaleVal.z*sumBox.z, 1.f);
+	voxelTransform[0][0] = scaleVal[0];
+	voxelTransform[1][1] = scaleVal[1];
+	voxelTransform[2][2] = scaleVal[2];
+	voxelTransform[3] = glm::vec4(-scaleVal.x*sceneBoxMin.x, -scaleVal.y*sceneBoxMin.y, -scaleVal.z*sceneBoxMin.z, 1.f);
+	return voxelTransform;
+}
+
+glm::mat4 Graphics::getVoxelTransform(Scene & renderingScene)
+{
+	renderingScene.getBoundingBox(sceneBoxMin, sceneBoxMax);
+	glm::vec3 deltaBox = sceneBoxMax - sceneBoxMin;
+	glm::mat4 voxelTransform(1);
+	voxelTransform[0][0] = deltaBox[0];
+	voxelTransform[1][1] = deltaBox[1];
+	voxelTransform[2][2] = deltaBox[2];
+	voxelTransform[3] = glm::vec4(sceneBoxMin.x, sceneBoxMin.y, sceneBoxMin.z, 1.f);
 	return voxelTransform;
 }
 
@@ -244,6 +262,8 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   clearFragmentTex(renderingScene);
 
   voxelizeScene(renderingScene);
+
+  modifyIndirectBuffer(renderingScene);
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -343,21 +363,23 @@ void Graphics::voxelizeScene(Scene & renderingScene) {
 	glm::mat4 viewMatrix = glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 	glUniformMatrix4fv(glGetUniformLocation(voxelizeShader->program, "V"), 1, GL_FALSE, glm::value_ptr(viewMatrix));
 	glm::mat4 viewMats[3];
-	// View Matrix for right camera
-	viewMats[0][0] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-	viewMats[0][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	viewMats[0][2] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-	viewMats[0][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-	// View Matrix for top camera
-	viewMats[1][0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-	viewMats[1][1] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-	viewMats[1][2] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	viewMats[1][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-	// View Matrix for far camera
-	viewMats[2][0] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
-	viewMats[2][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-	viewMats[2][2] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-	viewMats[2][3] = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
+	{
+		// View Matrix for right camera
+		viewMats[0][0] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		viewMats[0][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+		viewMats[0][2] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+		viewMats[0][3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		// View Matrix for top camera
+		viewMats[1][0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+		viewMats[1][1] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		viewMats[1][2] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+		viewMats[1][3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+		// View Matrix for far camera
+		viewMats[2][0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+		viewMats[2][1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+		viewMats[2][2] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		viewMats[2][3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
 	glUniformMatrix4fv(glGetUniformLocation(voxelizeShader->program, "viewProjs[0]"), 3, GL_FALSE, glm::value_ptr(viewMats[0]));
 
 	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
@@ -365,6 +387,7 @@ void Graphics::voxelizeScene(Scene & renderingScene) {
 
 	glUniform1ui(glGetUniformLocation(voxelizeShader->program, "voxelTexSize"), m_nodePoolDim);
 
+	// Bind atomic variable and set its value
 	int bindingPoint = 0;
 	glGetActiveAtomicCounterBufferiv(voxelizeShader->program, 0, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingPoint);
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingPoint, m_fragmentListCounter->m_bufferID);
@@ -384,6 +407,72 @@ void Graphics::voxelizeScene(Scene & renderingScene) {
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
 }
 
+void Graphics::modifyIndirectBuffer(Scene& renderingScene) {
+	MaterialStore& matStore = MaterialStore::getInstance();
+	auto modifyIndirectDrawShader = matStore.findMaterialWithName("modifyIndirectBuffer");
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glUseProgram(modifyIndirectDrawShader->program);
+
+	// bind texture buffer which will be modified by shader
+	m_fragmentListDrawCommandBuffer->Activate(modifyIndirectDrawShader->program, "indirectCommandBuf", 0);
+	glBindImageTexture(0, m_fragmentListDrawCommandBuffer->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+
+	// bind atomic variable
+	int bindingPoint = 0;
+	glGetActiveAtomicCounterBufferiv(modifyIndirectDrawShader->program, 0, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingPoint);
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingPoint, m_fragmentListCounter->m_bufferID);
+
+	// bind indirect draw buffer and draw
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_modifyIndirectBufferCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+}
+
+void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight)
+{
+	MaterialStore& matStore = MaterialStore::getInstance();
+	auto & camera = *renderingScene.renderingCamera;
+	const Material * material = matStore.findMaterialWithName("voxelVisualization");;
+	const GLuint program = material->program;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(program);
+
+	// GL Settings.
+	{
+		glViewport(0, 0, viewportWidth, viewportHeight);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+
+	// Upload uniforms.
+	uploadCamera(camera, program);
+	uploadGlobalConstants(program, viewportWidth, viewportHeight);
+	uploadLighting(renderingScene, program);
+	uploadRenderingSettings(program);
+
+	int textureUnitIdx = 0;
+	m_fragmentList->Activate(material->program, "voxelFragList_position", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_fragmentTextures[FRAG_TEX_COLOR]->Activate(material->program, "voxelFragTex_color", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentTextures[FRAG_TEX_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+
+	glUniform1ui(glGetUniformLocation(material->program, "voxelTexSize"), m_nodePoolDim);
+	glm::mat4 voxelGridTransform = getVoxelTransform(renderingScene);
+	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransform"), 1, GL_FALSE, glm::value_ptr(voxelGridTransform));
+
+	// Render.
+	//renderQueue(renderingScene.renderers, material->program, true);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
 {

@@ -245,9 +245,13 @@
     <None Include="Shaders\SparseVoxelOctree\clearFragmentTexVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeighVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\modifyIndirectBufferVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\voxelizeFrag.shader" />
     <None Include="Shaders\SparseVoxelOctree\voxelizeGeom.shader" />
     <None Include="Shaders\SparseVoxelOctree\voxelizeVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelVisualizationFrag.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelVisualizationGeom.shader" />
+    <None Include="Shaders\SparseVoxelOctree\voxelVisualizationVert.shader" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.frag" />
     <None Include="Shaders\Voxel Cone Tracing\voxel_cone_tracing.vert" />
     <None Include="Shaders\Voxelization\Visualization\voxel_visualization.frag" />
