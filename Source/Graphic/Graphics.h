@@ -15,6 +15,7 @@
 #include "TextureBuffer.h"
 #include "IndexBuffer.h"
 
+#define MAX_NODE_POOL_LEVELS 12
 class MeshRenderer;
 class Shape;
 
@@ -94,6 +95,8 @@ private:
   void voxelizeScene(Scene& renderingScene);
   void modifyIndirectBuffer(Scene& renderingScene);
   void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
+  void flagNode(Scene& renderingScene);
+  void allocateNode(Scene& renderingScene, int level);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -117,9 +120,10 @@ private:
     NODE_POOL_NUM_TEXTURES
   };
   std::shared_ptr<TextureBuffer> m_nodePoolTextures[NODE_POOL_NUM_TEXTURES];
+  std::shared_ptr<TextureBuffer> m_levelAddressBuffer;
   int m_nodePoolDim;
   int m_maxNodes; // max nodes = 1 + 8 + 8^2 + ... + nodePoolDim ^ 3
-  std::shared_ptr<IndexBuffer> m_nextFreeCounter;
+  std::shared_ptr<IndexBuffer> m_nextFreeNode;
 
   // Brick pool
   enum BrickPoolData {
@@ -155,6 +159,8 @@ private:
   std::shared_ptr<IndexBuffer> m_fragmentTexDrawCommandBuffer;
   std::shared_ptr<IndexBuffer> m_modifyIndirectBufferCommandBuffer;
   std::shared_ptr<TextureBuffer> m_fragmentListDrawCommandBuffer;
+  std::shared_ptr<IndexBuffer> m_nodePoolUpToLevelDrawCommandBuffer[MAX_NODE_POOL_LEVELS];
+  std::shared_ptr<IndexBuffer> m_nodePoolOnLevelDrawCommandBuffer[MAX_NODE_POOL_LEVELS];
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

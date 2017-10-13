@@ -167,6 +167,11 @@ void Graphics::initSparseVoxelization() {
   {
     m_nodePoolTextures[i] = std::shared_ptr<TextureBuffer>(new TextureBuffer(totalVoxels * sizeof(int)));
   }
+  std::vector<int> initialValues;
+  initialValues.resize(MAX_NODE_POOL_LEVELS, 0x3FFFFFFF);
+  initialValues[0] = 0;
+  initialValues[1] = 1;
+  m_levelAddressBuffer = std::shared_ptr<TextureBuffer>(new TextureBuffer(MAX_NODE_POOL_LEVELS * sizeof(int), (char*)&initialValues[0]));
 
   // Initialize brick pool
   m_brickPoolDim = 70;
@@ -197,7 +202,7 @@ void Graphics::initSparseVoxelization() {
 
   // Initialize atomic counter
   int counterVal = 0;
-  m_nextFreeCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
+  m_nextFreeNode = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
   m_fragmentListCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
 
   // Init indirect draw command buffer
@@ -215,6 +220,17 @@ void Graphics::initSparseVoxelization() {
   m_modifyIndirectBufferCommandBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   m_fragmentListDrawCommandBuffer = std::shared_ptr<TextureBuffer>(new TextureBuffer(sizeof(indirectCommand), (char*)&indirectCommand));
 
+  int numVoxelsUpToLevel = 0;
+  for (int iLevel = 0; iLevel < MAX_NODE_POOL_LEVELS; ++iLevel)
+  {
+	  int numVoxelsOnLevel = pow(8U, iLevel);
+	  numVoxelsUpToLevel += numVoxelsOnLevel;
+	  indirectCommand.numVertices = numVoxelsUpToLevel;
+	  m_nodePoolUpToLevelDrawCommandBuffer[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+	  indirectCommand.numVertices = numVoxelsOnLevel;
+	  m_nodePoolOnLevelDrawCommandBuffer[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+  }
+
   MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
@@ -222,6 +238,8 @@ void Graphics::initSparseVoxelization() {
   MaterialStore::getInstance().AddNewMaterial("voxelize", "SparseVoxelOctree\\VoxelizeVert.shader", "SparseVoxelOctree\\VoxelizeFrag.shader", "SparseVoxelOctree\\VoxelizeGeom.shader");
   MaterialStore::getInstance().AddNewMaterial("modifyIndirectBuffer", "SparseVoxelOctree\\modifyIndirectBufferVert.shader");
   MaterialStore::getInstance().AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
+  MaterialStore::getInstance().AddNewMaterial("flagNode", "SparseVoxelOctree\\flagNodeVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("allocateNode", "SparseVoxelOctree\\allocateNodeVert.shader");
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
@@ -252,9 +270,6 @@ glm::mat4 Graphics::getVoxelTransform(Scene & renderingScene)
 
 void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 {
-  glColorMask(false, false, false, false);
-  MaterialStore& matStore = MaterialStore::getInstance();
-
   clearNodePool(renderingScene);
 
   clearBrickPool(renderingScene);
@@ -264,9 +279,17 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   voxelizeScene(renderingScene);
 
   modifyIndirectBuffer(renderingScene);
+
+  int totalLevel = log2f(m_nodePoolDim) + 1;
+  for (int level = 0; level < totalLevel; level++)
+  {
+	  flagNode(renderingScene);
+	  allocateNode(renderingScene, level);
+  }
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
+	glColorMask(false, false, false, false);
 	MaterialStore& matStore = MaterialStore::getInstance();
 	// Clear node pool
 	// Because opengl only supports 8 texture units per draw, at least 2 draws are needed for 9 textures
@@ -468,10 +491,68 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransform"), 1, GL_FALSE, glm::value_ptr(voxelGridTransform));
 
 	// Render.
-	//renderQueue(renderingScene.renderers, material->program, true);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListDrawCommandBuffer->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::flagNode(Scene & renderingScene) {
+	MaterialStore& matStore = MaterialStore::getInstance();
+	const Material * material = matStore.findMaterialWithName("flagNode");
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(material->program);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	int textureUnitIdx = 0;
+	m_fragmentList->Activate(material->program, "voxelFragmentListPosition", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+
+	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
+
+	int numLevels = (int)log2f(m_nodePoolDim);
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), numLevels);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::allocateNode(Scene & renderingScene, int level) {
+	MaterialStore& matStore = MaterialStore::getInstance();
+	const Material * material = matStore.findMaterialWithName("allocateNode");
+
+	glUseProgram(material->program);
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+
+	int textureUnitIdx = 0;
+	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_levelAddressBuffer->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+
+	// Bind atomic variable and set its value
+	int bindingPoint = 0;
+	glGetActiveAtomicCounterBufferiv(material->program, 0, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingPoint);
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingPoint, m_nextFreeNode->m_bufferID);
+	if (level == 0)
+	{
+		GLuint *ptr = (GLuint *)glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+		ptr[0] = 0;
+		glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+	}
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolUpToLevelDrawCommandBuffer[level]->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 }
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
