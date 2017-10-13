@@ -240,6 +240,8 @@ void Graphics::initSparseVoxelization() {
   MaterialStore::getInstance().AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
   MaterialStore::getInstance().AddNewMaterial("flagNode", "SparseVoxelOctree\\flagNodeVert.shader");
   MaterialStore::getInstance().AddNewMaterial("allocateNode", "SparseVoxelOctree\\allocateNodeVert.shader");
+  MaterialStore::getInstance().AddNewMaterial("findNeighbours", "SparseVoxelOctree\\findNeighbours.shader");
+
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
@@ -283,6 +285,10 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   int totalLevel = log2f(m_nodePoolDim) + 1;
   for (int level = 0; level < totalLevel; level++)
   {
+	  if (level != 0)
+	  {
+		  findNeighbours(renderingScene, level);
+	  }
 	  flagNode(renderingScene);
 	  allocateNode(renderingScene, level);
   }
@@ -553,6 +559,52 @@ void Graphics::allocateNode(Scene & renderingScene, int level) {
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolUpToLevelDrawCommandBuffer[level]->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+}
+
+void Graphics::findNeighbours(Scene & renderingScene, int level) {
+	const Material * material = MaterialStore::getInstance().findMaterialWithName("findNeighbours");
+
+	glUseProgram(material->program);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+
+	int textureUnitIdx = 0;
+	m_fragmentList->Activate(material->program, "voxelFragmentListPosition", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+
+	int nodePoolIndices[] = {
+		NODE_POOL_NEIGH_X,
+		NODE_POOL_NEIGH_X_NEG,
+		NODE_POOL_NEIGH_Y,
+		NODE_POOL_NEIGH_Y_NEG,
+		NODE_POOL_NEIGH_Z,
+		NODE_POOL_NEIGH_Z_NEG,
+	};
+	std::string shaderVars[] = {
+		"nodePool_X",
+		"nodePool_X_neg",
+		"nodePool_Y",
+		"nodePool_Y_neg",
+		"nodePool_Z",
+		"nodePool_Z_neg",
+	};
+	for (int i = 0; i < 6; i++)
+	{
+		textureUnitIdx++;
+		int nodePoolTexID = nodePoolIndices[i];
+		std::string& shaderVarName = shaderVars[i];
+		m_nodePoolTextures[nodePoolTexID]->Activate(material->program, shaderVarName, textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[nodePoolTexID]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	}
+	int numLevels = (int)log2f(m_nodePoolDim);
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), numLevels);
+	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListDrawCommandBuffer->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
 }
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)

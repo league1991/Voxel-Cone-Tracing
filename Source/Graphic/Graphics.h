@@ -97,6 +97,7 @@ private:
   void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
   void flagNode(Scene& renderingScene);
   void allocateNode(Scene& renderingScene, int level);
+  void findNeighbours(Scene& renderingScene, int level);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;

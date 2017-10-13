@@ -5,6 +5,8 @@
 #include <fstream>
 #include <vector>
 
+std::string Shader::s_includePath = "Shaders/";
+
 GLuint Shader::compile() {
 	// Create and compile shader.
 	GLuint id = glCreateShader(shaderType);
@@ -35,7 +37,7 @@ GLuint Shader::compile() {
 
 Shader::Shader(std::string _path, ShaderType _type) : path(_path), shaderType(_type) {
 	// Load the shader instantly.
-	std::ifstream fileStream(path, std::ios::in);
+	std::ifstream fileStream(s_includePath + path, std::ios::in);
 	if (!fileStream.is_open()) {
 		std::cerr << "Couldn't load shader '" + std::string(path) + "'." << std::endl;
 		fileStream.close();
@@ -45,7 +47,28 @@ Shader::Shader(std::string _path, ShaderType _type) : path(_path), shaderType(_t
 	rawShader = "";
 	while (!fileStream.eof()) {
 		std::getline(fileStream, line);
-		rawShader.append(line + "\n");
+		if (line.find("#include") == 0)
+		{
+			int firstQuote, secondQuote;
+			firstQuote = line.find('\"');
+			if (firstQuote != std::string::npos)
+			{
+				secondQuote = line.find('\"', firstQuote+1);
+			}
+			std::string fileName = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+			std::ifstream includeStream(s_includePath + fileName, std::ios::in);
+			if (includeStream.is_open()) {
+				while (!includeStream.eof())
+				{
+					std::getline(includeStream, line);
+					rawShader.append(line + "\n");
+				}
+			}
+		}
+		else
+		{
+			rawShader.append(line + "\n");
+		}
 	}
 	fileStream.close();
 }

@@ -26,12 +26,11 @@ void MaterialStore::AddNewMaterial(
 	using ST = Shader::ShaderType;
 	Shader *v, *f, *g, *te, *tc;
 	v = f = g = te = tc = nullptr;
-	const std::string shaderPath = "Shaders\\";
-	if (vertexPath) { v = new Shader(shaderPath + vertexPath, ST::VERTEX); }
-	if (fragmentPath) { f = new Shader(shaderPath + fragmentPath, ST::FRAGMENT); }
-	if (geometryPath) { g = new Shader(shaderPath + geometryPath, ST::GEOMETRY); }
-	if (tessEvalPath) { te = new Shader(shaderPath + tessEvalPath, ST::TESSELATION_EVALUATION); }
-	if (tessCtrlPath) { tc = new Shader(shaderPath + tessCtrlPath, ST::TESSELATION_CONTROL); }
+	if (vertexPath) { v = new Shader(vertexPath, ST::VERTEX); }
+	if (fragmentPath) { f = new Shader(fragmentPath, ST::FRAGMENT); }
+	if (geometryPath) { g = new Shader(geometryPath, ST::GEOMETRY); }
+	if (tessEvalPath) { te = new Shader(tessEvalPath, ST::TESSELATION_EVALUATION); }
+	if (tessCtrlPath) { tc = new Shader(tessCtrlPath, ST::TESSELATION_CONTROL); }
 	materials.push_back(new Material(name, v, f, g, te, tc));
 	delete v, f, g, te, tc;
 }

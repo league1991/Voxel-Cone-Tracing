@@ -30,7 +30,11 @@ public:
 
 	/// <summary> Creates and loads a shader from disk. Does not compile it. </summary>
 	Shader(std::string path, ShaderType shaderType);
+
+	static void setIncludePath(const std::string& includePath) { s_includePath = includePath; }
 private:
 	std::string rawShader;
 	Shader();
+
+	static std::string s_includePath;
 };
