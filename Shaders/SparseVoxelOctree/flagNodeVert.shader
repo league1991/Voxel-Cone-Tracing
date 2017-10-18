@@ -75,6 +75,7 @@ void main() {
 	vec3 posTex = vec3(voxelPos) / vec3(voxelGridResolution);
 
 	uint onLevel = 0;
+	// find node without child and return its address
 	int nodeAddress = traverseOctree_simple(posTex, onLevel);
 
 	if (onLevel < numLevels - 1) {

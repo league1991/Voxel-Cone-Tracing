@@ -44,6 +44,7 @@ public:
 	bool indirectDiffuseLight = true;
 	bool indirectSpecularLight = true;
 	bool directLight = true;
+	int m_ithVisualizeLevel = 0; // visualize brick pool for node in ith level 
 
 	// ----------------
 	// Voxelization.
@@ -93,11 +94,19 @@ private:
   void clearBrickPool(Scene& renderingScene);
   void clearFragmentTex(Scene& renderingScene);
   void voxelizeScene(Scene& renderingScene);
-  void modifyIndirectBuffer(Scene& renderingScene);
-  void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
+  void modifyIndirectBuffer(std::shared_ptr<IndexBuffer> valueBuffer, std::shared_ptr<TextureBuffer> commandBuffer);
+  void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight, int level);
   void flagNode(Scene& renderingScene);
   void allocateNode(Scene& renderingScene, int level);
   void findNeighbours(Scene& renderingScene, int level);
+  void allocateBrick();
+  void writeLeafNode();
+  void spreadLeafBrick(std::shared_ptr<Texture3D> brickPoolTexture);
+  void borderTransfer(std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -110,7 +119,7 @@ private:
   enum NodePoolData
   {
     NODE_POOL_NEXT,
-    NODE_POOL_COLOR,
+    NODE_POOL_COLOR, // node pool -> brick pool address map
     NODE_POOL_NORMAL,
     NODE_POOL_NEIGH_X,
     NODE_POOL_NEIGH_X_NEG,
@@ -123,8 +132,9 @@ private:
   std::shared_ptr<TextureBuffer> m_nodePoolTextures[NODE_POOL_NUM_TEXTURES];
   std::shared_ptr<TextureBuffer> m_levelAddressBuffer;
   int m_nodePoolDim;
+  int m_numLevels; // number of levels of **interior** nodes
   int m_maxNodes; // max nodes = 1 + 8 + 8^2 + ... + nodePoolDim ^ 3
-  std::shared_ptr<IndexBuffer> m_nextFreeNode;
+  std::shared_ptr<IndexBuffer> m_nextFreeNode;		// atomic counter for next free node
 
   // Brick pool
   enum BrickPoolData {
@@ -141,6 +151,8 @@ private:
   };
   int m_brickPoolDim; // brick pool voxels = dim * dim * dim
   std::shared_ptr<Texture3D> m_brickPoolTextures[BRICK_POOL_NUM_TEXTURES];
+  std::shared_ptr<IndexBuffer> m_nextFreeBrick;		// atomic counter for next free brick
+
 
   // Fragment Texure
   enum FragmentTexData {
@@ -152,16 +164,17 @@ private:
 
   // Fragment List
   std::shared_ptr<TextureBuffer> m_fragmentList;
-  std::shared_ptr<IndexBuffer> m_fragmentListCounter;
+  std::shared_ptr<IndexBuffer> m_fragmentListCounter; // atomic counter for fragment list
 
-  // Draw command
-  std::shared_ptr<IndexBuffer> m_nodePoolDrawCommandBuffer;
-  std::shared_ptr<IndexBuffer> m_brickPoolDrawCommandBuffer;
-  std::shared_ptr<IndexBuffer> m_fragmentTexDrawCommandBuffer;
-  std::shared_ptr<IndexBuffer> m_modifyIndirectBufferCommandBuffer;
-  std::shared_ptr<TextureBuffer> m_fragmentListDrawCommandBuffer;
-  std::shared_ptr<IndexBuffer> m_nodePoolUpToLevelDrawCommandBuffer[MAX_NODE_POOL_LEVELS];
-  std::shared_ptr<IndexBuffer> m_nodePoolOnLevelDrawCommandBuffer[MAX_NODE_POOL_LEVELS];
+  // Draw command buffers
+  std::shared_ptr<IndexBuffer> m_nodePoolCmdBuf;     // all voxels in node pool
+  std::shared_ptr<IndexBuffer> m_brickPoolCmdBuf;    // all voxels in brick pool
+  std::shared_ptr<IndexBuffer> m_fragmentTexCmdBuf;
+  std::shared_ptr<IndexBuffer> m_modifyIndirectBufferCmdBuf;
+  std::shared_ptr<TextureBuffer> m_fragmentListCmdBuf;	// actual fragment list length
+  std::shared_ptr<TextureBuffer> m_nodePoolNodesCmdBuf; // tiles in node pool
+  std::shared_ptr<IndexBuffer> m_nodePoolUpToLevelCmdBuf[MAX_NODE_POOL_LEVELS];
+  std::shared_ptr<IndexBuffer> m_nodePoolOnLevelCmdBuf[MAX_NODE_POOL_LEVELS];
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

@@ -100,8 +100,8 @@ void Application::init() {
 	// Initialize scene.
 	// -------------------------------------
 	//scene = new __DEFAULT_LEVEL();
-  //scene = new DragonScene();
-  scene = new CornellScene();
+  scene = new DragonScene();
+  //scene = new CornellScene();
   //scene = new MultipleObjectsScene();
   scene->init(w, h);
 	std::cout << "[3] : Scene initialized." << std::endl;
@@ -119,6 +119,7 @@ void Application::init() {
 	for (auto * meshRenderer : scene->renderers) if (meshRenderer->tweakable) tweakableRenderers.push_back(meshRenderer);
 	TwAddVarRW(mainTweakBar, "Application state", TW_TYPE_INT32, &state, "label='State' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Rendering mode", renderingMode, &currentRenderingMode, "enum='0 {Voxel Visualization}, 1 {Voxel Cone Tracing}' group=Rendering");
+	TwAddVarRW(mainTweakBar, "Visualization Level", TW_TYPE_INT32, &graphics.m_ithVisualizeLevel, "label='Visualization Level' group=Rendering");
 	auto temp = "mainsep1";
 	TwAddSeparator(mainTweakBar, temp, NULL);
 	TwAddVarRW(mainTweakBar, "Shadows", TW_TYPE_BOOL8, &graphics.shadows, "group=Settings");

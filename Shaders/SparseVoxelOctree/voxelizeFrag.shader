@@ -89,7 +89,7 @@ uint imageAtomicRGBA8Avg(layout(r32ui) volatile uimage3D img,
 
 void main() {
 	//uvec3 baseVoxel = uvec3(floor(In.posTexSpace * (voxelTexSize)));
-	uvec3 baseVoxel = uvec3((In.posTexSpace * (voxelTexSize)));
+	uvec3 baseVoxel = uvec3(floor(In.posTexSpace * (voxelTexSize)));
 
 	vec4 diffColor = texture(diffuseTex, vec2(In.uv.x, 1.0 - In.uv.y));
 	// Pre-multiply alpha:
