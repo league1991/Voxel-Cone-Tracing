@@ -100,8 +100,8 @@ void Application::init() {
 	// Initialize scene.
 	// -------------------------------------
 	//scene = new __DEFAULT_LEVEL();
-  scene = new DragonScene();
-  //scene = new CornellScene();
+  //scene = new DragonScene();
+  scene = new CornellScene();
   //scene = new MultipleObjectsScene();
   scene->init(w, h);
 	std::cout << "[3] : Scene initialized." << std::endl;

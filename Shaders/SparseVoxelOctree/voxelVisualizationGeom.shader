@@ -58,17 +58,17 @@ void main(){
 		uvec3 outIdx = triIndex[i];
 		vec4 pos0 = posWorldSpace + vec4(offset[outIdx.x], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos0;
-		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.x]));
+		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.x] * 2.0));
 		EmitVertex();
 
 		vec4 pos1 = posWorldSpace + vec4(offset[outIdx.y], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos1;
-		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.y]));
+		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.y] * 2.0));
 		EmitVertex();
 
 		vec4 pos2 = posWorldSpace + vec4(offset[outIdx.z], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos2;
-		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.z]));
+		Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.z] * 2.0));
 		EmitVertex();
 
 		EndPrimitive();
