@@ -44,6 +44,7 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 		ticksSinceLastVoxelization = 0;
 		voxelizationQueued = false;
 	}
+	sparseVoxelize(renderingScene, true);
 
 	// Render.
 	switch (renderingMode) {
@@ -80,6 +81,10 @@ void Graphics::renderScene(Scene & renderingScene, unsigned int viewportWidth, u
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	// Texture.
+	voxelTexture->Activate(material->program, "texture3D", 0);
+	glBindImageTexture(0, voxelTexture->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 
 	// Upload uniforms.
 	uploadCamera(camera, program);
@@ -154,6 +159,7 @@ void Graphics::initSparseVoxelization() {
   // Initialize node pool
 	m_nodePoolDim = 64;
 	m_numLevels = (int)log2f(m_nodePoolDim);
+	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
   int nLevels = 0;
   int totalVoxels = 0;
@@ -292,7 +298,7 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   // write fragment list length to draw buffer
   modifyIndirectBuffer(m_fragmentListCounter, m_fragmentListCmdBuf);
 
-  for (int level = 0; level < m_numLevels; level++)
+  for (int level = 0; level < m_numLevels-1; level++)
   {
 	  if (level != 0)
 	  {
@@ -310,22 +316,22 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 
   writeLeafNode();
 
-  spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_COLOR]);
-  spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_NORMAL]);
+  //spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_COLOR]);
+  //spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
-  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
-  borderTransfer(m_brickPoolTextures[BRICK_POOL_NORMAL]);
+  //borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
+  //borderTransfer(m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
-  for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
-	  mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	  mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	  mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	  mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	  if (ithLevel > 0)
-	  {
-		  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
-	  }
-  }
+  //for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+	 // mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	 // mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	 // mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	 // mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	 // if (ithLevel > 0)
+	 // {
+		//  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
+	 // }
+  //}
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -418,7 +424,7 @@ void Graphics::voxelizeScene(Scene & renderingScene) {
 	{
 		int fIdx = fragmentTexIndices[textureUnitIdx];
 		m_fragmentTextures[fIdx]->Activate(voxelizeShader->program, fragmentTexNames[textureUnitIdx], textureUnitIdx);
-		glBindImageTexture(textureUnitIdx, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+		glBindImageTexture(textureUnitIdx, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
 	}
 	m_fragmentList->Activate(voxelizeShader->program, "voxelFragList_position", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
@@ -497,8 +503,8 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	const Material * material = matStore.findMaterialWithName("voxelVisualization");;
 	const GLuint program = material->program;
 
-	//level = std::min(level, m_numLevels-1);
-
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glUseProgram(program);
 
@@ -510,9 +516,9 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDisable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		glBlendColor(1.0, 1.0, 1.0, 2.0);
 	}
 
 	// Upload uniforms.
@@ -543,7 +549,7 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
@@ -672,7 +678,7 @@ void Graphics::allocateBrick() {
 	glGetActiveAtomicCounterBufferiv(material->program, 0, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingPoint);
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingPoint, m_nextFreeBrick->m_bufferID);
 	GLuint *ptr = (GLuint *)glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
-	ptr[0] = 0;
+	ptr[0] = 1;
 	glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolNodesCmdBuf->m_bufferID);
@@ -697,16 +703,16 @@ void Graphics::writeLeafNode() {
 	{
 		int fIdx = fragmentTexIndices[textureUnitIdx];
 		m_fragmentTextures[fIdx]->Activate(material->program, fragmentTexNames[textureUnitIdx], textureUnitIdx);
-		glBindImageTexture(textureUnitIdx, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glBindImageTexture(textureUnitIdx, m_fragmentTextures[fIdx]->textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	}
 	m_fragmentList->Activate(material->program, "voxelFragList_position", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	std::string brickPoolNames[3] = { "brickPool_color", "brickPool_irradiance","brickPool_normal" };
 	int brickPoolIndices[3] = { BRICK_POOL_COLOR, BRICK_POOL_IRRADIANCE, BRICK_POOL_NORMAL };
@@ -714,7 +720,7 @@ void Graphics::writeLeafNode() {
 	{
 		int bIdx = brickPoolIndices[i];
 		m_brickPoolTextures[bIdx]->Activate(material->program, brickPoolNames[i], textureUnitIdx);
-		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 	}
 	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
 
@@ -897,8 +903,6 @@ void Graphics::mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTextur
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
 {
-  sparseVoxelize(renderingScene, clearVoxelization);
-
 	if (clearVoxelization) {
 		GLfloat clearColor[4] = { 0, 0, 0, 0 };
 		voxelTexture->Clear(clearColor);

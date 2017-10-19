@@ -35,11 +35,9 @@ int traverseToLevel(in vec3 posTex, out uint foundOnLevel) {
 	foundOnLevel = 0;
 	float sideLength = 1.0;
 
-	for (uint iLevel = 0; iLevel <= level; ++iLevel) {
+	for (foundOnLevel = 0; foundOnLevel < level; ++foundOnLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
-
 		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
-		foundOnLevel = iLevel;
 		if (childStartAddress == 0U) {
 			break;
 		}
@@ -60,14 +58,6 @@ int traverseToLevel(in vec3 posTex, out uint foundOnLevel) {
 }
 
 void main(){
-	//uint nodeAddress = getThreadNode();
-	//if (nodeAddress == NODE_NOT_FOUND) {
-	//	return;  // The requested threadID-node does not belong to the current level
-	//}
-
-	//ivec3 brickAddress = ivec3(uintXYZ10ToVec3(
-	//	imageLoad(nodePool_color, int(nodeAddress)).x));
-
 	// Get position
 	uvec4 positionU = imageLoad(voxelFragList_position, int(gl_VertexID));
 	uvec3 baseVoxel = uintXYZ10ToVec3(positionU.x);
@@ -81,14 +71,14 @@ void main(){
 
 	uint onLevel = 0;
 	int nodeAddress = traverseToLevel(posTexSpace, onLevel);
-	Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
-	//if (onLevel == level) {
-	//	Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
-	//	//vec4 brickColor = imageLoad(brickPool_color, brickAddress);
-	//	//Out.color = brickColor;
-	//}
-	//else {
-	//	//Out.color = vec4(1, 0, 0, 0.2);
-	//	Out.brickAddress = ivec3(0, 0, 0);
-	//}
+	//Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
+	if (onLevel == level) {
+		Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
+		//vec4 brickColor = imageLoad(brickPool_color, brickAddress);
+		//Out.color = brickColor;
+	}
+	else {
+		//Out.color = vec4(1, 0, 0, 0.2);
+		Out.brickAddress = ivec3(-1, -1, -1);
+	}
 }

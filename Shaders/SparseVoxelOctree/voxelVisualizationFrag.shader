@@ -7,5 +7,5 @@ in VoxelData{
 out vec4 pixelColor;
 
 void main() {
-	pixelColor = In.color;
+	pixelColor = vec4(In.color.rgb, In.color.a * 0.1);
 }

@@ -26,7 +26,7 @@ void alloc3x3x3TextureBrick(in int nodeAddress) {
 }
 
 void main() {
-  uint tileAddress = (8U * gl_VertexID);
+  uint tileAddress = (8U * gl_VertexID)+1;
 
   for (uint i = 0; i < 8; ++i) {
     int address = int(tileAddress + i);

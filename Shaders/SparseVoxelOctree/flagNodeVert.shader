@@ -78,8 +78,10 @@ void main() {
 	// find node without child and return its address
 	int nodeAddress = traverseOctree_simple(posTex, onLevel);
 
-	if (onLevel < numLevels - 1) {
-		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
-		flagNode(nodeNext, nodeAddress);
-	}
+	uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+	flagNode(nodeNext, nodeAddress);
+	//if (onLevel < numLevels - 1) {
+	//	uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+	//	flagNode(nodeNext, nodeAddress);
+	//}
 }
