@@ -316,22 +316,22 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 
   writeLeafNode();
 
-  //spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_COLOR]);
-  //spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_NORMAL]);
+  spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_COLOR]);
+  spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
-  //borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
-  //borderTransfer(m_brickPoolTextures[BRICK_POOL_NORMAL]);
+  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
+  borderTransfer(m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
-  //for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
-	 // mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	 // mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	 // mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	 // mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
-	 // if (ithLevel > 0)
-	 // {
-		//  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
-	 // }
-  //}
+  for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+	  mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  if (ithLevel > 0)
+	  {
+		  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  }
+  }
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -594,6 +594,20 @@ void Graphics::allocateNode(Scene & renderingScene, int level) {
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+
+	// Clear level address buffer first
+	if (level == 0)
+	{
+		glBindBuffer(GL_TEXTURE_BUFFER, m_levelAddressBuffer->m_bufferID);
+		GLuint *ptr = (GLuint *)glMapBufferRange(GL_TEXTURE_BUFFER, 0, sizeof(GLuint) * MAX_NODE_POOL_LEVELS, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+		for (int i = 0; i < MAX_NODE_POOL_LEVELS; i++)
+		{
+			ptr[i] = 0x3FFFFFFF;
+		}
+		ptr[0] = 0;
+		ptr[1] = 1;
+		glUnmapBuffer(GL_TEXTURE_BUFFER);
+	}
 
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
