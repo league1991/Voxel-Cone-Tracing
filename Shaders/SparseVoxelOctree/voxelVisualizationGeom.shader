@@ -55,6 +55,16 @@ void main(){
 	bool validAddress = brickAddress.r >= 0;
 	Out.color = vec4(1, 0, 0, 1);
 
+	//vec4 clr = vec4(0, 0, 0, 0);
+	//for (int x = 0; x < 3; ++x) {
+	//	for (int y = 0; y < 3; ++y) {
+	//		for (int z = 0; z < 3; ++z) {
+	//			clr += imageLoad(brickPool_color, brickAddress + ivec3(x,y,z));
+	//		}
+	//	}
+	//}
+	//Out.color = clr / 27;
+
 	for (int i = 0; i < 12; ++i)
 	{
 		uvec3 outIdx = triIndex[i];

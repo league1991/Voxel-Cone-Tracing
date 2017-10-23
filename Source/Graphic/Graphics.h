@@ -12,6 +12,7 @@
 #include "Camera\OrthographicCamera.h"
 #include "../Shape/Mesh.h"
 #include "Texture3D.h"
+#include "Texture2D.h"
 #include "TextureBuffer.h"
 #include "IndexBuffer.h"
 
@@ -89,9 +90,10 @@ private:
   // ----------------
   void initSparseVoxelization();
   void sparseVoxelize(Scene & renderingScene, bool clearVoxelizationFirst = true);
+  void lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst = true);
   // sparse voxelize functions
   void clearNodePool(Scene& renderingScene);
-  void clearBrickPool(Scene& renderingScene);
+  void clearBrickPool(Scene& renderingScene, bool isClearAll);
   void clearFragmentTex(Scene& renderingScene);
   void voxelizeScene(Scene& renderingScene);
   void modifyIndirectBuffer(std::shared_ptr<IndexBuffer> valueBuffer, std::shared_ptr<TextureBuffer> commandBuffer);
@@ -107,6 +109,8 @@ private:
   void mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  // light update function
+  void clearNodeMap();
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -166,6 +170,10 @@ private:
   std::shared_ptr<TextureBuffer> m_fragmentList;
   std::shared_ptr<IndexBuffer> m_fragmentListCounter; // atomic counter for fragment list
 
+  // Light node map
+  int m_shadowMapRes;
+  std::shared_ptr<Texture2D> m_lightNodeMap;
+
   // Draw command buffers
   std::shared_ptr<IndexBuffer> m_nodePoolCmdBuf;     // all voxels in node pool
   std::shared_ptr<IndexBuffer> m_brickPoolCmdBuf;    // all voxels in brick pool
@@ -175,6 +183,7 @@ private:
   std::shared_ptr<TextureBuffer> m_nodePoolNodesCmdBuf; // tiles in node pool
   std::shared_ptr<IndexBuffer> m_nodePoolUpToLevelCmdBuf[MAX_NODE_POOL_LEVELS];
   std::shared_ptr<IndexBuffer> m_nodePoolOnLevelCmdBuf[MAX_NODE_POOL_LEVELS];
+  std::shared_ptr<IndexBuffer> m_lightNodeMapCmdBuf; // all pixels in m_lightNodeMap
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

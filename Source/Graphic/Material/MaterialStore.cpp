@@ -35,6 +35,22 @@ void MaterialStore::AddNewMaterial(
 	delete v, f, g, te, tc;
 }
 
+void MaterialStore::AddNewMaterial(
+	std::string name, const ShaderInfo * vertexInfo, const ShaderInfo * fragmentInfo,
+	const ShaderInfo * geometryInfo, const ShaderInfo * tessEvalInfo, const ShaderInfo * tessCtrlInfo)
+{
+	using ST = Shader::ShaderType;
+	Shader *v, *f, *g, *te, *tc;
+	v = f = g = te = tc = nullptr;
+	if (vertexInfo) { v = new Shader(vertexInfo->m_path, ST::VERTEX, vertexInfo->m_preprocessorDef); }
+	if (fragmentInfo) { f = new Shader(fragmentInfo->m_path, ST::FRAGMENT, fragmentInfo->m_preprocessorDef); }
+	if (geometryInfo) { g = new Shader(geometryInfo->m_path, ST::GEOMETRY, geometryInfo->m_preprocessorDef); }
+	if (tessEvalInfo) { te = new Shader(tessEvalInfo->m_path, ST::TESSELATION_EVALUATION, tessEvalInfo->m_preprocessorDef); }
+	if (tessCtrlInfo) { tc = new Shader(tessCtrlInfo->m_path, ST::TESSELATION_CONTROL, tessCtrlInfo->m_preprocessorDef); }
+	materials.push_back(new Material(name, v, f, g, te, tc));
+	delete v, f, g, te, tc;
+}
+
 Material * MaterialStore::findMaterialWithName(std::string name)
 {
 	for (unsigned int i = 0; i < materials.size(); ++i) {

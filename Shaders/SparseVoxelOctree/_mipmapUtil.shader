@@ -20,12 +20,17 @@ void loadChildTile(in int tileAddress) {
   memoryBarrier();
 }
 
+uvec3 uintXYZ10ToVec3_(uint val) {
+	return uvec3(uint((val & 0x000003FF)), uint((val & 0x000FFC00) >> 10U),
+		uint((val & 0x3FF00000) >> 20U));
+}
+
 vec4 getColor(in ivec3 pos) {
   ivec3 childPos = ivec3(round(vec3(pos) / 4.0));
   int childIndex = childPos.x + 2 * childPos.y + 4 * childPos.z;
   ivec3 localPos = pos - 2 * childPos;
 
-  ivec3 childBrickAddress = ivec3(uintXYZ10ToVec3(childColorU[childIndex]));
+  ivec3 childBrickAddress = ivec3(uintXYZ10ToVec3_(childColorU[childIndex]));
   return imageLoad(brickPool_value, childBrickAddress + localPos);
 }
 

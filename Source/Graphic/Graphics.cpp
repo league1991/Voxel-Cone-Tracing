@@ -32,6 +32,7 @@ void Graphics::init(unsigned int viewportWidth, unsigned int viewportHeight)
 	voxelConeTracingMaterial = MaterialStore::getInstance().findMaterialWithName("voxel_cone_tracing");
 	voxelCamera = OrthographicCamera(viewportWidth / float(viewportHeight));
 	initVoxelization();
+	initSparseVoxelization();
 	initVoxelVisualization(viewportWidth, viewportHeight);
 }
 
@@ -45,6 +46,7 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 		voxelizationQueued = false;
 	}
 	sparseVoxelize(renderingScene, true);
+	lightUpdate(renderingScene, true);
 
 	// Render.
 	switch (renderingMode) {
@@ -151,7 +153,6 @@ void Graphics::initVoxelization()
 	const std::vector<GLfloat> texture3D(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize, 0.0f);
 	voxelTexture = new Texture3D(texture3D, voxelTextureSize, voxelTextureSize, voxelTextureSize, true);
 
-  initSparseVoxelization();
 }
 
 void Graphics::initSparseVoxelization() {
@@ -213,6 +214,15 @@ void Graphics::initSparseVoxelization() {
   m_nextFreeBrick = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
   m_fragmentListCounter = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_ATOMIC_COUNTER_BUFFER, sizeof(counterVal), GL_STATIC_DRAW, &counterVal));
 
+  // Init light node map
+  m_shadowMapRes = 512;
+  m_lightNodeMap = std::shared_ptr<Texture2D>(new Texture2D(m_shadowMapRes + m_shadowMapRes / 2, m_shadowMapRes, false, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT));
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, m_lightNodeMap->textureID);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
   // Init indirect draw command buffer
   IndirectDrawCommand indirectCommand;
   indirectCommand.baseInstanceIdx = 0;
@@ -228,7 +238,6 @@ void Graphics::initSparseVoxelization() {
   m_modifyIndirectBufferCmdBuf = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   m_fragmentListCmdBuf = std::shared_ptr<TextureBuffer>(new TextureBuffer(sizeof(indirectCommand), (char*)&indirectCommand));
   m_nodePoolNodesCmdBuf = std::shared_ptr<TextureBuffer>(new TextureBuffer(sizeof(indirectCommand), (char*)&indirectCommand));
-
   int numVoxelsUpToLevel = 0;
   for (int iLevel = 0; iLevel < MAX_NODE_POOL_LEVELS; ++iLevel)
   {
@@ -239,7 +248,10 @@ void Graphics::initSparseVoxelization() {
 	  indirectCommand.numVertices = numVoxelsOnLevel;
 	  m_nodePoolOnLevelCmdBuf[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   }
+  indirectCommand.numVertices = (m_shadowMapRes + m_shadowMapRes / 2)* m_shadowMapRes;
+  m_lightNodeMapCmdBuf = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
 
+  // Add shaders
   MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
   MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
@@ -258,6 +270,7 @@ void Graphics::initSparseVoxelization() {
   MaterialStore::getInstance().AddNewMaterial("mipmapFaces", "SparseVoxelOctree\\MipmapFaces.shader");
   MaterialStore::getInstance().AddNewMaterial("mipmapCorners", "SparseVoxelOctree\\MipmapCorners.shader");
   MaterialStore::getInstance().AddNewMaterial("mipmapEdges", "SparseVoxelOctree\\MipmapEdges.shader");
+  MaterialStore::getInstance().AddNewMaterial("clearNodeMap", "SparseVoxelOctree\\ClearNodeMap.shader");
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
@@ -290,7 +303,7 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 {
 	// Clear everything
   clearNodePool(renderingScene);
-  clearBrickPool(renderingScene);
+  clearBrickPool(renderingScene, true);
   clearFragmentTex(renderingScene);
 
   voxelizeScene(renderingScene);
@@ -322,6 +335,11 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
   borderTransfer(m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
+  int ithLevel = m_numLevels - 2;
+  //mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+  //mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+  //mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+  //mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
   for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
 	  mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
 	  mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
@@ -332,6 +350,12 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 		  borderTransfer(m_brickPoolTextures[BRICK_POOL_COLOR]);
 	  }
   }
+}
+
+void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
+{
+	//clearBrickPool(renderingScene, false);
+	//clearNodeMap();
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -374,7 +398,7 @@ void Graphics::clearNodePool(Scene & renderingScene) {
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::clearBrickPool(Scene & renderingScene) {
+void Graphics::clearBrickPool(Scene & renderingScene, bool isClearAll) {
 	// Clear brick pool
 	MaterialStore& matStore = MaterialStore::getInstance();
 	auto clearShader = matStore.findMaterialWithName("clearBrickPool");
@@ -387,7 +411,7 @@ void Graphics::clearBrickPool(Scene & renderingScene) {
 		m_brickPoolTextures[bIdx]->Activate(clearShader->program, brickPoolNames[i], i);
 		glBindImageTexture(i, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 	}
-	glUniform1i(glGetUniformLocation(clearShader->program, "clearMode"), 0);
+	glUniform1ui(glGetUniformLocation(clearShader->program, "clearMode"), isClearAll ? 0 : 1);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_brickPoolCmdBuf->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -913,6 +937,20 @@ void Graphics::mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTextur
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolOnLevelCmdBuf[level]->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::clearNodeMap()
+{
+	const Material * material = MaterialStore::getInstance().findMaterialWithName("clearNodeMap");
+	glUseProgram(material->program);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	int textureUnitIdx = 0;
+	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
+	glBindImageTexture(textureUnitIdx, m_lightNodeMap->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_lightNodeMapCmdBuf->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
 }
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)

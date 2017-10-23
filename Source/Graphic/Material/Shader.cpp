@@ -35,7 +35,7 @@ GLuint Shader::compile() {
 	return id;
 }
 
-Shader::Shader(std::string _path, ShaderType _type) : path(_path), shaderType(_type) {
+Shader::Shader(std::string _path, ShaderType _type, std::string preprocessorDefs) : path(_path), shaderType(_type) {
 	// Load the shader instantly.
 	std::ifstream fileStream(s_includePath + path, std::ios::in);
 	if (!fileStream.is_open()) {
@@ -44,7 +44,7 @@ Shader::Shader(std::string _path, ShaderType _type) : path(_path), shaderType(_t
 		return;
 	}
 	std::string line = "";
-	rawShader = "";
+	rawShader = preprocessorDefs;
 	while (!fileStream.eof()) {
 		std::getline(fileStream, line);
 		if (line.find("#include") == 0)

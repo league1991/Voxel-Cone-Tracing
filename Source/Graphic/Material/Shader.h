@@ -29,7 +29,7 @@ public:
 	GLuint compile();
 
 	/// <summary> Creates and loads a shader from disk. Does not compile it. </summary>
-	Shader(std::string path, ShaderType shaderType);
+	Shader(std::string path, ShaderType shaderType, std::string preprocessorDefs="");
 
 	static void setIncludePath(const std::string& includePath) { s_includePath = includePath; }
 private:

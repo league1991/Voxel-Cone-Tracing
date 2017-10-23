@@ -246,6 +246,7 @@
     <None Include="Shaders\SparseVoxelOctree\BorderTransfer.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearBrickPoolVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearFragmentTexVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\ClearNodeMap.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeighVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\findNeighbours.shader" />

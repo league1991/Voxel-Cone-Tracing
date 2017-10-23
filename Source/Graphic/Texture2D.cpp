@@ -44,6 +44,35 @@ Texture2D::Texture2D(
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+Texture2D::Texture2D(int texWidth, int texHeight, bool generateMipmaps, GLint internalFormat, GLenum externalFormat, GLenum pixelType)
+{
+	width = texWidth;
+	height = texHeight;
+
+	// Generate texture on GPU.
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+	// Parameter options.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	// Set texture filtering options.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, generateMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// Upload texture buffer.
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, externalFormat, pixelType, nullptr);
+
+	// Mip maps.
+	if (generateMipmaps) {
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+
+	// Clean up.
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 Texture2D::~Texture2D()
 {
 	glDeleteTextures(1, &textureID);
@@ -53,5 +82,15 @@ void Texture2D::Activate(int shaderProgram, int textureUnit)
 {
 	glActiveTexture(textureUnit);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glUniform1i(glGetUniformLocation(shaderProgram, shaderTextureSamplerName.c_str()), textureUnit);
+	if (shaderTextureSamplerName.size())
+	{
+		glUniform1i(glGetUniformLocation(shaderProgram, shaderTextureSamplerName.c_str()), textureUnit);
+	}
+}
+
+void Texture2D::Activate(int shaderProgram, int textureUnit, std::string samplerName)
+{
+	glActiveTexture(GL_TEXTURE0+textureUnit);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glUniform1i(glGetUniformLocation(shaderProgram, samplerName.c_str()), textureUnit);
 }
