@@ -251,11 +251,14 @@
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\findNeighbours.shader" />
     <None Include="Shaders\SparseVoxelOctree\flagNodeVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\LightInjection.shader" />
     <None Include="Shaders\SparseVoxelOctree\MipmapCenter.shader" />
     <None Include="Shaders\SparseVoxelOctree\MipmapCorners.shader" />
     <None Include="Shaders\SparseVoxelOctree\MipmapEdges.shader" />
     <None Include="Shaders\SparseVoxelOctree\MipmapFaces.shader" />
     <None Include="Shaders\SparseVoxelOctree\modifyIndirectBufferVert.shader" />
+    <None Include="Shaders\SparseVoxelOctree\ShadowMapFrag.shader" />
+    <None Include="Shaders\SparseVoxelOctree\ShadowMapVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\WriteLeafs.shader" />
     <None Include="Shaders\SparseVoxelOctree\SpreadLeafBricks.shader" />
     <None Include="Shaders\SparseVoxelOctree\voxelizeFrag.shader" />

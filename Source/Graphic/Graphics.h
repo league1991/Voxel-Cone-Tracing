@@ -111,6 +111,8 @@ private:
   void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   // light update function
   void clearNodeMap();
+  void shadowMap(Scene& renderingScene);
+  void lightInjection(Scene& renderingScene);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -173,6 +175,14 @@ private:
   // Light node map
   int m_shadowMapRes;
   std::shared_ptr<Texture2D> m_lightNodeMap;
+  std::vector<glm::ivec2> m_nodeMapSizes;
+  std::vector<glm::ivec2> m_nodeMapOffsets;
+  int m_nNodeMapLevels;
+  std::shared_ptr<FBO> m_shadowMapBuffer;
+  glm::vec3 m_lightPos;
+  glm::vec3 m_lightDir;
+  glm::mat4 m_lightViewMat;
+  glm::mat4 m_lightProjMat;
 
   // Draw command buffers
   std::shared_ptr<IndexBuffer> m_nodePoolCmdBuf;     // all voxels in node pool
@@ -184,6 +194,7 @@ private:
   std::shared_ptr<IndexBuffer> m_nodePoolUpToLevelCmdBuf[MAX_NODE_POOL_LEVELS];
   std::shared_ptr<IndexBuffer> m_nodePoolOnLevelCmdBuf[MAX_NODE_POOL_LEVELS];
   std::shared_ptr<IndexBuffer> m_lightNodeMapCmdBuf; // all pixels in m_lightNodeMap
+  std::shared_ptr<IndexBuffer> m_nodeMapOnLevelCmdBuf[MAX_NODE_POOL_LEVELS];
 
   glm::vec3 sceneBoxMin;
   glm::vec3 sceneBoxMax;

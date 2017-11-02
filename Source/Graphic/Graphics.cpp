@@ -45,6 +45,7 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 		ticksSinceLastVoxelization = 0;
 		voxelizationQueued = false;
 	}
+	shadowMap(renderingScene);
 	sparseVoxelize(renderingScene, true);
 	lightUpdate(renderingScene, true);
 
@@ -216,12 +217,30 @@ void Graphics::initSparseVoxelization() {
 
   // Init light node map
   m_shadowMapRes = 512;
+  m_nNodeMapLevels = (int)log2f(m_shadowMapRes) + 1;
+  m_nodeMapSizes.resize(m_nNodeMapLevels);
+  m_nodeMapOffsets.resize(m_nNodeMapLevels);
   m_lightNodeMap = std::shared_ptr<Texture2D>(new Texture2D(m_shadowMapRes + m_shadowMapRes / 2, m_shadowMapRes, false, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT));
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, m_lightNodeMap->textureID);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
   glBindTexture(GL_TEXTURE_2D, 0);
+  for (int i = 0; i < m_nNodeMapLevels; i++)
+  {
+	  int res = (int)powf(2.0, float(i));
+	  m_nodeMapSizes[i] = glm::ivec2(res, res);
+  }
+  m_nodeMapOffsets[m_nNodeMapLevels - 1] = glm::ivec2(0, 0);
+  m_nodeMapOffsets[m_nNodeMapLevels - 2] = glm::ivec2(m_shadowMapRes, 0);
+  for (int i = m_nNodeMapLevels-3; i >= 0; i--)
+  {
+	  int yPos = m_nodeMapOffsets[i + 1].y + m_nodeMapSizes[i + 1].y;
+	  m_nodeMapOffsets[i] = glm::ivec2(m_shadowMapRes, yPos);
+  }
+
+  // Init shadow map
+  m_shadowMapBuffer = std::shared_ptr<FBO>(new FBO(m_shadowMapRes, m_shadowMapRes, GL_NEAREST, GL_NEAREST, GL_RGB32F, GL_FLOAT, GL_CLAMP));
 
   // Init indirect draw command buffer
   IndirectDrawCommand indirectCommand;
@@ -248,6 +267,11 @@ void Graphics::initSparseVoxelization() {
 	  indirectCommand.numVertices = numVoxelsOnLevel;
 	  m_nodePoolOnLevelCmdBuf[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   }
+  for (int iLevel = 0; iLevel < MAX_NODE_POOL_LEVELS; ++iLevel)
+  {
+	  indirectCommand.numVertices = pow(2U, iLevel);
+	  m_nodeMapOnLevelCmdBuf[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
+  }
   indirectCommand.numVertices = (m_shadowMapRes + m_shadowMapRes / 2)* m_shadowMapRes;
   m_lightNodeMapCmdBuf = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
 
@@ -270,7 +294,10 @@ void Graphics::initSparseVoxelization() {
   MaterialStore::getInstance().AddNewMaterial("mipmapFaces", "SparseVoxelOctree\\MipmapFaces.shader");
   MaterialStore::getInstance().AddNewMaterial("mipmapCorners", "SparseVoxelOctree\\MipmapCorners.shader");
   MaterialStore::getInstance().AddNewMaterial("mipmapEdges", "SparseVoxelOctree\\MipmapEdges.shader");
+  // light shaders
   MaterialStore::getInstance().AddNewMaterial("clearNodeMap", "SparseVoxelOctree\\ClearNodeMap.shader");
+  MaterialStore::getInstance().AddNewMaterial("lightInjection", "SparseVoxelOctree\\LightInjection.shader");
+  MaterialStore::getInstance().AddNewMaterial("shadowMap", "SparseVoxelOctree\\ShadowMapVert.shader", "SparseVoxelOctree\\ShadowMapFrag.shader");
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
@@ -354,8 +381,9 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 
 void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
 {
-	//clearBrickPool(renderingScene, false);
-	//clearNodeMap();
+	clearBrickPool(renderingScene, false);
+	clearNodeMap();
+	lightInjection(renderingScene);
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -575,8 +603,10 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
-	m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	//m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
+	//glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_color", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
 	// Render.
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
@@ -951,6 +981,79 @@ void Graphics::clearNodeMap()
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_lightNodeMapCmdBuf->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
+}
+
+void Graphics::shadowMap(Scene & renderingScene) {
+	const Material * material = MaterialStore::getInstance().findMaterialWithName("shadowMap");
+	glUseProgram(material->program);
+	glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMapBuffer->frameBuffer);
+
+	glEnable(GL_DEPTH_TEST);
+	glViewport(0, 0, m_shadowMapRes, m_shadowMapRes);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_CULL_FACE);
+
+	// Set matrix
+	//m_lightPos = renderingScene.renderingCamera->position;// glm::vec3(0, 0.5, 1);
+	//m_lightDir = renderingScene.renderingCamera->forward();// glm::vec3(0, -1, -1);
+	//m_lightViewMat = renderingScene.renderingCamera->viewMatrix;// glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
+	//m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
+
+	m_lightPos = glm::vec3(0, 0.5, 1);
+	m_lightDir = glm::vec3(0, -1, -1);
+	m_lightViewMat = glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
+	m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
+
+	glUniformMatrix4fv(glGetUniformLocation(material->program, "V"), 1, GL_FALSE, glm::value_ptr(m_lightViewMat));
+	glUniformMatrix4fv(glGetUniformLocation(material->program, "P"), 1, GL_FALSE, glm::value_ptr(m_lightProjMat));
+	//uploadCamera(*renderingScene.renderingCamera, material->program);
+
+	renderQueue(renderingScene.renderers, material->program, true);
+}
+
+void Graphics::lightInjection(Scene& renderingScene) {
+	const Material * material = MaterialStore::getInstance().findMaterialWithName("lightInjection");
+	glUseProgram(material->program);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	// TODO: add shadow map
+	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
+	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransformI"), 1, GL_FALSE, glm::value_ptr(voxelGridTransformI));
+	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
+	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
+
+	glm::vec3 lightColor(1,1,1);
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
+	glUniform3f(glGetUniformLocation(material->program, "lightColor"), lightColor.r, lightColor.g, lightColor.b);
+	glUniform3f(glGetUniformLocation(material->program, "lightDir"), m_lightDir.r, m_lightDir.g, m_lightDir.b);
+
+	int textureUnitIdx = 0;
+	m_shadowMapBuffer->ActivateAsTexture(material->program, "smPosition", textureUnitIdx);
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+
+	std::string brickPoolNames[3] = { "brickPool_color", "brickPool_irradiance","brickPool_normal" };
+	int brickPoolIndices[3] = { BRICK_POOL_COLOR, BRICK_POOL_IRRADIANCE, BRICK_POOL_NORMAL };
+	for (int i = 0; i < 2; i++, textureUnitIdx++)
+	{
+		int bIdx = brickPoolIndices[i];
+		m_brickPoolTextures[bIdx]->Activate(material->program, brickPoolNames[i], textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[bIdx]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	}
+
+	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
+	glBindImageTexture(textureUnitIdx, m_lightNodeMap->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodeMapOnLevelCmdBuf[m_nNodeMapLevels-1]->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 void Graphics::voxelize(Scene & renderingScene, bool clearVoxelization)
