@@ -4,7 +4,6 @@
 //#define THREAD_MODE 0
 //
 uniform usamplerBuffer levelAddressBuffer;
-uniform uint numLevels;  // Number of levels in the octree
 uniform uint level;
 //
 #include "SparseVoxelOctree/_utilityFunctions.shader"
@@ -64,7 +63,9 @@ void main(){
 	vec3 posTexSpace = vec3(baseVoxel) / float(voxelTexSize);
 	uvec3 posTexSpacei = uvec3(posTexSpace / levelTexSize[level]);
 	posTexSpace = vec3(posTexSpacei) * levelTexSize[level];
+
 	Out.posWorldSpace = voxelGridTransform * vec4(posTexSpace, 1.0);
+
 
 	//uvec4 colorU = imageLoad(voxelFragTex_color, ivec3(baseVoxel));
 	//Out.color = convRGBA8ToVec4(colorU.x) / 255.0;

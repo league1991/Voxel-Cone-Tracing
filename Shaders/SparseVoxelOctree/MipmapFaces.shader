@@ -24,8 +24,8 @@
 */
 
 //#version 430 core
-#version 430 core
-#define THREAD_MODE 0
+//#version 430 core
+//#define THREAD_MODE 0
 
 layout(r32ui) uniform readonly uimageBuffer nodePool_next;
 layout(r32ui) uniform readonly uimageBuffer nodePool_color;

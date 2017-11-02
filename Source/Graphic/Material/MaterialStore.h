@@ -8,6 +8,8 @@ class Material;
 class MaterialStore {
 public:
   struct ShaderInfo {
+	  ShaderInfo() {}
+	  ShaderInfo(const std::string& path, const std::string& preprocessor) :m_path(path), m_preprocessorDef(preprocessor) {}
     std::string m_path;
     std::string m_preprocessorDef;
   };

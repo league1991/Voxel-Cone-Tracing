@@ -84,24 +84,24 @@ void main() {
     uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
     
     uint childStartAddress = nodeNext & NODE_MASK_VALUE;
-    if (childStartAddress == 0U) {
+    if (childStartAddress == 0U) 
+	{
        // Find brick pool 3D address
        uint nodeColorU = imageLoad(nodePool_color, nodeAddress).x;
        
        ivec3 brickCoords = ivec3(uintXYZ10ToVec3(nodeColorU));
        uvec3 offVec = uvec3(2.0 * posTex);
-       uint off = offVec.x + 2U * offVec.y + 4U * offVec.z;
+       uint offIdx = offVec.x + 2U * offVec.y + 4U * offVec.z;
 
-	   ivec3 injectionPos = brickCoords  +2 * ivec3(childOffsets[off]);
+	   ivec3 injectionPos = brickCoords  +2 * ivec3(childOffsets[offIdx]);
         //vec3 voxelNormal = normalize(imageLoad(brickPool_normal, injectionPos).xyz * 2.0 - 1.0);
         vec4 voxelColor = imageLoad(brickPool_color, injectionPos);
        
-		vec4 reflectedRadiance = vec4(lightColor, 1);// *voxelColor;
+		vec4 reflectedRadiance =  vec4(lightColor, 1) *voxelColor;
         //reflectedRadiance.xyz *= clamp(abs(dot(-lightDir, voxelNormal)) + 0.3, 0.0, 1.0);
 
         // Store irradiance into brickPool irradiance
         imageStore(brickPool_irradiance, injectionPos, reflectedRadiance);
-     
          //store Radiance in brick corners
         /*imageStore(brickPool_irradiance,
                injectionPos,

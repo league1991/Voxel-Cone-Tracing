@@ -9,6 +9,7 @@ layout(rgba8) uniform image3D brickPool_color;
 
 uniform mat4 voxelGridTransformG;
 uniform uint levelG;
+uniform uint numLevels;  // Number of levels in the octree
 const float levelTexSizeG[] = {1.0,       1 / 2.0,  1 / 4.0,  1 / 8.0,
                               1 / 16.0,  1 / 32.0, 1 / 64.0, 1 / 128.0,
                               1 / 256.0, 1 / 512.0};
@@ -53,7 +54,9 @@ void main(){
 	float deltaTex = levelTexSizeG[levelG];
 	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.9;
 	bool validAddress = brickAddress.r >= 0;
-	Out.color = vec4(1, 0, 0, 1);
+
+	float alphaFactor = 0.2 / pow(8.0, float(numLevels) - float(levelG));
+	Out.color = vec4(1, 0, 0, alphaFactor);
 
 	//vec4 clr = vec4(0, 0, 0, 0);
 	//for (int x = 0; x < 3; ++x) {
@@ -70,20 +73,26 @@ void main(){
 		uvec3 outIdx = triIndex[i];
 		vec4 pos0 = posWorldSpace + vec4(offset[outIdx.x], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos0;
-		if(validAddress)
+		if (validAddress) {
 			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.x] * 2.0));
+			Out.color.a = Out.color.a * alphaFactor + 1.0/255.0;
+		}
 		EmitVertex();
 
 		vec4 pos1 = posWorldSpace + vec4(offset[outIdx.y], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos1;
-		if (validAddress)
+		if (validAddress) {
 			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.y] * 2.0));
+			Out.color.a = Out.color.a * alphaFactor + 1.0 / 255.0;
+		}
 		EmitVertex();
 
 		vec4 pos2 = posWorldSpace + vec4(offset[outIdx.z], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos2;
-		if (validAddress)
+		if (validAddress){
 			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.z] * 2.0));
+			Out.color.a = Out.color.a * alphaFactor + 1.0 / 255.0;
+		}
 		EmitVertex();
 
 		EndPrimitive();

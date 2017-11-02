@@ -104,7 +104,7 @@ private:
   void allocateBrick();
   void writeLeafNode();
   void spreadLeafBrick(std::shared_ptr<Texture3D> brickPoolTexture);
-  void borderTransfer(std::shared_ptr<Texture3D> brickPoolTexture);
+  void borderTransfer(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture);
@@ -113,6 +113,12 @@ private:
   void clearNodeMap();
   void shadowMap(Scene& renderingScene);
   void lightInjection(Scene& renderingScene);
+  void spreadLeafBrickLight(std::shared_ptr<Texture3D> brickPoolTexture);
+  void borderTransferLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;

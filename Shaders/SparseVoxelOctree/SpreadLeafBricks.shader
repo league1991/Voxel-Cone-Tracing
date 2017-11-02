@@ -31,8 +31,8 @@ Every voxel is read from the voxel fragment list and its position is used
 to traverse the octree and find the leaf-node.
 */
 //#version 420 core
-#version 420 core
-#define THREAD_MODE 0
+//#version 420 core
+//#define THREAD_MODE 0
 
 layout(r32ui) uniform readonly uimageBuffer nodePool_color;
 layout(rgba8) uniform volatile image3D brickPool_value;

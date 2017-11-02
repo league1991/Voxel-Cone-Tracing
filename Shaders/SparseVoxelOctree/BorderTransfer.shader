@@ -23,8 +23,8 @@
 * \author Andreas Weinmann (andy.weinmann@gmail.com)
 */
 
-#version 430 core
-#define THREAD_MODE 0
+//#version 430 core
+//#define THREAD_MODE 0
 
 uniform usamplerBuffer nodePool_color;
 uniform usamplerBuffer nodePool_Neighbour;
