@@ -102,8 +102,10 @@ void Graphics::renderScene(Scene & renderingScene, unsigned int viewportWidth, u
 void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight)
 {
 	// Fetch references.
+	MaterialStore& matStore = MaterialStore::getInstance();
+	const Material * material = matStore.findMaterialWithName("voxelConeTracing");
+
 	auto & camera = *renderingScene.renderingCamera;
-	const Material * material = voxelConeTracingMaterial;
 	const GLuint program = material->program;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -312,50 +314,54 @@ void Graphics::initSparseVoxelization() {
   m_lightNodeMapCmdBuf = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
 
   // Add shaders
+  auto& store = MaterialStore::getInstance();
   MaterialStore::ShaderInfo vertInfo, geomInfo, fragInfo;
-  MaterialStore::getInstance().AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("clearFragmentTex", "SparseVoxelOctree\\clearFragmentTexVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("voxelize", "SparseVoxelOctree\\VoxelizeVert.shader", "SparseVoxelOctree\\VoxelizeFrag.shader", "SparseVoxelOctree\\VoxelizeGeom.shader");
-  MaterialStore::getInstance().AddNewMaterial("modifyIndirectBuffer", "SparseVoxelOctree\\modifyIndirectBufferVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
-  MaterialStore::getInstance().AddNewMaterial("flagNode", "SparseVoxelOctree\\flagNodeVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("allocateNode", "SparseVoxelOctree\\allocateNodeVert.shader");
-  MaterialStore::getInstance().AddNewMaterial("findNeighbours", "SparseVoxelOctree\\findNeighbours.shader");
-  MaterialStore::getInstance().AddNewMaterial("allocateBrick", "SparseVoxelOctree\\allocBricks.shader");
-  MaterialStore::getInstance().AddNewMaterial("writeLeafs", "SparseVoxelOctree\\WriteLeafs.shader");
+  store.AddNewMaterial("clearNodePool", "SparseVoxelOctree\\clearNodePoolVert.shader");
+  store.AddNewMaterial("clearNodePoolNeigh", "SparseVoxelOctree\\clearNodePoolNeighVert.shader");
+  store.AddNewMaterial("clearBrickPool", "SparseVoxelOctree\\clearBrickPoolVert.shader");
+  store.AddNewMaterial("clearFragmentTex", "SparseVoxelOctree\\clearFragmentTexVert.shader");
+  store.AddNewMaterial("voxelize", "SparseVoxelOctree\\VoxelizeVert.shader", "SparseVoxelOctree\\VoxelizeFrag.shader", "SparseVoxelOctree\\VoxelizeGeom.shader");
+  store.AddNewMaterial("modifyIndirectBuffer", "SparseVoxelOctree\\modifyIndirectBufferVert.shader");
+  store.AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
+  store.AddNewMaterial("flagNode", "SparseVoxelOctree\\flagNodeVert.shader");
+  store.AddNewMaterial("allocateNode", "SparseVoxelOctree\\allocateNodeVert.shader");
+  store.AddNewMaterial("findNeighbours", "SparseVoxelOctree\\findNeighbours.shader");
+  store.AddNewMaterial("allocateBrick", "SparseVoxelOctree\\allocBricks.shader");
+  store.AddNewMaterial("writeLeafs", "SparseVoxelOctree\\WriteLeafs.shader");
 
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\SpreadLeafBricks.shader", "#version 420 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("spreadLeaf", &vertInfo);
+  store.AddNewMaterial("spreadLeaf", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\BorderTransfer.shader", "#version 430 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("borderTransfer", &vertInfo);
+  store.AddNewMaterial("borderTransfer", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapCenter.shader", "#version 430 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapCenter", &vertInfo);
+  store.AddNewMaterial("mipmapCenter", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapFaces.shader", "#version 430 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapFaces", &vertInfo);
+  store.AddNewMaterial("mipmapFaces", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapCorners.shader", "#version 430 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapCorners", &vertInfo);
+  store.AddNewMaterial("mipmapCorners", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapEdges.shader", "#version 430 core\n#define THREAD_MODE 0\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapEdges", &vertInfo);
+  store.AddNewMaterial("mipmapEdges", &vertInfo);
 
   // light shaders
-  MaterialStore::getInstance().AddNewMaterial("clearNodeMap", "SparseVoxelOctree\\ClearNodeMap.shader");
-  MaterialStore::getInstance().AddNewMaterial("lightInjection", "SparseVoxelOctree\\LightInjection.shader");
-  MaterialStore::getInstance().AddNewMaterial("shadowMap", "SparseVoxelOctree\\ShadowMapVert.shader", "SparseVoxelOctree\\ShadowMapFrag.shader");
+  store.AddNewMaterial("clearNodeMap", "SparseVoxelOctree\\ClearNodeMap.shader");
+  store.AddNewMaterial("lightInjection", "SparseVoxelOctree\\LightInjection.shader");
+  store.AddNewMaterial("shadowMap", "SparseVoxelOctree\\ShadowMapVert.shader", "SparseVoxelOctree\\ShadowMapFrag.shader");
 
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\SpreadLeafBricks.shader", "#version 420 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("spreadLeafLight", &vertInfo);
+  store.AddNewMaterial("spreadLeafLight", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\BorderTransfer.shader", "#version 430 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("borderTransferLight", &vertInfo);
+  store.AddNewMaterial("borderTransferLight", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapCenter.shader", "#version 430 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapCenterLight", &vertInfo);
+  store.AddNewMaterial("mipmapCenterLight", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapFaces.shader", "#version 430 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapFacesLight", &vertInfo);
+  store.AddNewMaterial("mipmapFacesLight", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapCorners.shader", "#version 430 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapCornersLight", &vertInfo);
+  store.AddNewMaterial("mipmapCornersLight", &vertInfo);
   vertInfo = MaterialStore::ShaderInfo("SparseVoxelOctree\\MipmapEdges.shader", "#version 430 core\n#define THREAD_MODE 1\n");
-  MaterialStore::getInstance().AddNewMaterial("mipmapEdgesLight", &vertInfo);
+  store.AddNewMaterial("mipmapEdgesLight", &vertInfo);
+
+  // cone tracing shaders
+  store.AddNewMaterial("voxelConeTracing", "Voxel Cone Tracing\\voxel_cone_tracing.vert", "SparseVoxelOctree\\voxelConeTracingFrag.shader");
 }
 
 glm::mat4 Graphics::getVoxelTransformInverse(Scene & renderingScene)
