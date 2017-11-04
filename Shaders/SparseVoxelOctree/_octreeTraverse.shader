@@ -84,6 +84,35 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel) {
   return nodeAddress;
 }
 
+int traverseToLevel(in vec3 posTex, out uint foundOnLevel, in uint maxLevel) {
+	vec3 nodePosTex = vec3(0.0);
+	vec3 nodePosMaxTex = vec3(1.0);
+	int nodeAddress = 0;
+	foundOnLevel = 0;
+	float sideLength = 1.0;
+
+	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
+		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
+		if (childStartAddress == 0U) {
+			break;
+		}
+
+		uvec3 offVec = uvec3(2.0 * posTex);
+		uint off = offVec.x + 2U * offVec.y + 4U * offVec.z;
+
+		// Restart while-loop with the child node (aka recursion)
+		nodeAddress = int(childStartAddress + off);
+		nodePosTex += vec3(childOffsets[off]) * vec3(sideLength);
+		nodePosMaxTex = nodePosTex + vec3(sideLength);
+
+		sideLength = sideLength / 2.0;
+		posTex = 2.0 * posTex - vec3(offVec);
+	} // level-for
+
+	return nodeAddress;
+}
+
 // find the leaf node containing the given position, return the node's address and its level
 int traverseOctree_posOut(inout vec3 posTex, out uint foundOnLevel) {
   vec3 nodePosTex = vec3(0.0);

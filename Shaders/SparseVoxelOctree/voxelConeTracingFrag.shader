@@ -42,6 +42,35 @@
 // Other settings.
 #define GAMMA_CORRECTION 1 /* Whether to use gamma correction or not. */
 
+// Here are my uniform variables
+layout(r32ui) uniform readonly uimageBuffer nodePool_next;
+layout(r32ui) uniform readonly uimageBuffer nodePool_color;
+
+layout(rgba8) uniform image3D brickPool_color;
+layout(rgba8) uniform image3D brickPool_irradiance;
+layout(rgba8) uniform image3D brickPool_normal;
+
+uniform mat4 voxelGridTransformI;
+uniform uint numLevels;
+
+#include "SparseVoxelOctree/_utilityFunctions.shader"
+#include "SparseVoxelOctree/_traverseUtil.shader"
+#include "SparseVoxelOctree/_octreeTraverse.shader"
+
+vec4 getSVOValue(vec3 posWorld, layout(rgba8) image3D brickPoolImg, uint maxLevel) {
+	vec3 posTex = (voxelGridTransformI * vec4(posWorld, 1.0)).xyz;
+
+	if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
+		posTex.x > 1 || posTex.y > 1 || posTex.z > 1) {
+		return vec4(0,0,0,1);
+	}
+	uint onLevel = 0;
+	int nodeAddress = traverseToLevel(posTex, onLevel, maxLevel);
+	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
+	vec4 brickVal = imageLoad(brickPoolImg, brickAddress);
+	return brickVal;
+}
+
 // Basic point light.
 struct PointLight {
 	vec3 position;
@@ -128,27 +157,30 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	direction = normalize(direction);
 	
-	const float CONE_SPREAD = 0.325;
+	const float CONE_SPREAD = 0.1;// 0.325;
 
 	vec4 acc = vec4(0.0f);
 
 	// Controls bleeding from close surfaces.
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
-	float dist = 0.1953125;
+	float dist = 0.01;// 0.1953125;
 
 	// Trace.
-	while(dist < SQRT2 && acc.a < 1){
+	while(dist < 5 && acc.a < 1){
 		vec3 c = from + dist * direction;
-		c = scaleAndBias(from + dist * direction);
+		//c = scaleAndBias(from + dist * direction);
 		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
 		float level = log2(l);
 		float ll = (level + 1) * (level + 1);
-		vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
-		acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
-		dist += ll * VOXEL_SIZE * 2;
+		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
+		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
+		acc += voxel;// *pow(1 - voxel.a, 2);
+		dist += VOXEL_SIZE * 2;// *ll;
 	}
-	return pow(acc.rgb * 2.0, vec3(1.5));
+	return acc.xyz;
+	//return pow(acc.rgb * 2.0, vec3(1.5));
+	//return getSVOValue(from, brickPool_irradiance).xyz;
 }
 
 // Traces a specular voxel cone.
@@ -196,8 +228,8 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * (1 + 4 * ISQRT2) * VOXEL_SIZE;
-	const vec3 C_ORIGIN = worldPositionFrag + N_OFFSET;
+	const vec3 N_OFFSET = normal * 0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
 	vec3 acc = vec3(0);
@@ -205,50 +237,49 @@ vec3 indirectDiffuseLight(){
 	// We offset forward in normal direction, and backward in cone direction.
 	// Backward in cone direction improves GI, and forward direction removes
 	// artifacts.
-	const float CONE_OFFSET = -0.01;
+	//const float CONE_OFFSET = -0.01;
+	const float CONE_OFFSET = -0.0;
 
 	// Trace front cone
 	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
 
-	// Trace 4 side cones.
-	const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
-	const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
-	const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
-	const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
+	//// Trace 4 side cones.
+	//const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
+	//const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
+	//const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
+	//const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
 
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
+	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
+	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
+	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
+	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
 
-	// Trace 4 corner cones.
-	const vec3 c1 = mix(normal, corner, ANGLE_MIX);
-	const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
-	const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
-	const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
+	//// Trace 4 corner cones.
+	//const vec3 c1 = mix(normal, corner, ANGLE_MIX);
+	//const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
+	//const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
+	//const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
 
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
+	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
+	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
+	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
+	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
 
 	// Return result.
 	return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
 }
 
 // Calculates indirect specular light using voxel cone tracing.
-vec3 indirectSpecularLight(vec3 viewDirection){
-	const vec3 reflection = normalize(reflect(viewDirection, normal));
-	return material.specularReflectivity * material.specularColor * traceSpecularVoxelCone(worldPositionFrag, reflection);
-}
-
+//vec3 indirectSpecularLight(vec3 viewDirection){
+//	const vec3 reflection = normalize(reflect(viewDirection, normal));
+//	return material.specularReflectivity * material.specularColor * traceSpecularVoxelCone(worldPositionFrag, reflection);
+//}
 // Calculates refractive light using voxel cone tracing.
-vec3 indirectRefractiveLight(vec3 viewDirection){
-	const vec3 refraction = refract(viewDirection, normal, 1.0 / material.refractiveIndex);
-	const vec3 cmix = mix(material.specularColor, 0.5 * (material.specularColor + vec3(1)), material.transparency);
-	return cmix * traceSpecularVoxelCone(worldPositionFrag, refraction);
-}
-
+//vec3 indirectRefractiveLight(vec3 viewDirection){
+//	const vec3 refraction = refract(viewDirection, normal, 1.0 / material.refractiveIndex);
+//	const vec3 cmix = mix(material.specularColor, 0.5 * (material.specularColor + vec3(1)), material.transparency);
+//	return cmix * traceSpecularVoxelCone(worldPositionFrag, refraction);
+//}
 // Calculates diffuse and specular direct light for a given point light.  
 // Uses shadow cone tracing for soft shadows.
 vec3 calculateDirectLight(const PointLight light, const vec3 viewDirection){
@@ -319,25 +350,26 @@ void main(){
 	const vec3 viewDirection = normalize(worldPositionFrag - cameraPosition);
 
 	// Indirect diffuse light.
-	if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
-		color.rgb += indirectDiffuseLight();
+	// if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
+	color.rgb += indirectDiffuseLight();
+	//color += getSVOValue(worldPositionFrag, brickPool_irradiance);
 
-	// Indirect specular light (glossy reflections).
-	if(settings.indirectSpecularLight && material.specularReflectivity * (1.0f - material.transparency) > 0.01f) 
-		color.rgb += indirectSpecularLight(viewDirection);
+	//// Indirect specular light (glossy reflections).
+	//if(settings.indirectSpecularLight && material.specularReflectivity * (1.0f - material.transparency) > 0.01f) 
+	//	color.rgb += indirectSpecularLight(viewDirection);
 
-	// Emissivity.
-	color.rgb += material.emissivity * material.diffuseColor;
+	//// Emissivity.
+	//color.rgb += material.emissivity * material.diffuseColor;
 
-	// Transparency
-	if(material.transparency > 0.01f)
-		color.rgb = mix(color.rgb, indirectRefractiveLight(viewDirection), material.transparency);
+	//// Transparency
+	//if(material.transparency > 0.01f)
+	//	color.rgb = mix(color.rgb, indirectRefractiveLight(viewDirection), material.transparency);
 
 	// Direct light.
-	if(settings.directLight)
-		color.rgb += directLight(viewDirection);
+	//if(settings.directLight)
+	//	color.rgb += directLight(viewDirection);
 
-#if (GAMMA_CORRECTION == 1)
-	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
-#endif
+//#if (GAMMA_CORRECTION == 1)
+//	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
+//#endif
 }

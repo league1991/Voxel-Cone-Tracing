@@ -112,21 +112,43 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 	glUseProgram(program);
 
 	// GL Settings.
-	glViewport(0, 0, viewportWidth, viewportHeight);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	{
+		glViewport(0, 0, viewportWidth, viewportHeight);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
 	// Texture.
-	voxelTexture->Activate(material->program, "texture3D", 0);
-	glBindImageTexture(0, voxelTexture->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	int textureUnitIdx = 0;
+	//voxelTexture->Activate(material->program, "texture3D", textureUnitIdx);
+	//glBindImageTexture(textureUnitIdx, voxelTexture->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	//textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	textureUnitIdx++;
+	m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	textureUnitIdx++;
+	m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_irradiance", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	textureUnitIdx++;
+	m_brickPoolTextures[BRICK_POOL_NORMAL]->Activate(material->program, "brickPool_normal", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
 	// Upload uniforms.
+	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
+	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransformI"), 1, GL_FALSE, glm::value_ptr(voxelGridTransformI));
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
+
 	uploadCamera(camera, program);
 	uploadGlobalConstants(program, viewportWidth, viewportHeight);
 	uploadLighting(renderingScene, program);
