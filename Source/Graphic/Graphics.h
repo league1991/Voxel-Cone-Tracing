@@ -111,14 +111,16 @@ private:
   void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   // light update function
   void clearNodeMap();
-  void shadowMap(Scene& renderingScene);
-  void lightInjection(Scene& renderingScene);
+  void shadowMap(Scene& renderingScene, const PointLight& light);
+  void lightInjection(Scene& renderingScene, const PointLight& light);
   void spreadLeafBrickLight(std::shared_ptr<Texture3D> brickPoolTexture);
   void borderTransferLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  // hierarchical cone tracing
+  void renderSceneWithSVO(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
 
   struct IndirectDrawCommand {
     uint32_t numVertices;
@@ -185,7 +187,6 @@ private:
   std::vector<glm::ivec2> m_nodeMapOffsets;
   int m_nNodeMapLevels;
   std::shared_ptr<FBO> m_shadowMapBuffer;
-  glm::vec3 m_lightPos;
   glm::vec3 m_lightDir;
   glm::mat4 m_lightViewMat;
   glm::mat4 m_lightProjMat;

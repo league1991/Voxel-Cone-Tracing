@@ -45,7 +45,6 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 		ticksSinceLastVoxelization = 0;
 		voxelizationQueued = false;
 	}
-	shadowMap(renderingScene);
 	sparseVoxelize(renderingScene, true);
 	lightUpdate(renderingScene, true);
 
@@ -56,7 +55,8 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 		visualizeVoxel(renderingScene, viewportWidth, viewportHeight, m_ithVisualizeLevel);
 		break;
 	case RenderingMode::VOXEL_CONE_TRACING:
-		renderScene(renderingScene, viewportWidth, viewportHeight);
+		//renderScene(renderingScene, viewportWidth, viewportHeight);
+		renderSceneWithSVO(renderingScene, viewportWidth, viewportHeight);
 		break;
 	}
 }
@@ -65,6 +65,41 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 // Scene rendering.
 // ----------------------
 void Graphics::renderScene(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight)
+{
+	// Fetch references.
+	auto & camera = *renderingScene.renderingCamera;
+	const Material * material = voxelConeTracingMaterial;
+	const GLuint program = material->program;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(program);
+
+	// GL Settings.
+	glViewport(0, 0, viewportWidth, viewportHeight);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	// Texture.
+	voxelTexture->Activate(material->program, "texture3D", 0);
+	glBindImageTexture(0, voxelTexture->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+	// Upload uniforms.
+	uploadCamera(camera, program);
+	uploadGlobalConstants(program, viewportWidth, viewportHeight);
+	uploadLighting(renderingScene, program);
+	uploadRenderingSettings(program);
+
+	// Render.
+	renderQueue(renderingScene.renderers, material->program, true);
+}
+
+void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight)
 {
 	// Fetch references.
 	auto & camera = *renderingScene.renderingCamera;
@@ -400,25 +435,33 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 
 void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
 {
+	// only clear irradiance pool
 	clearBrickPool(renderingScene, false);
 	clearNodeMap();
 
-	lightInjection(renderingScene);
+	for (unsigned int i = 0; i < renderingScene.pointLights.size(); ++i)
+	{
+		auto& light = renderingScene.pointLights[i];
+		shadowMap(renderingScene, light);
+		lightInjection(renderingScene, light);
 
-	spreadLeafBrickLight(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	borderTransferLight(m_numLevels-1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		spreadLeafBrickLight(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		borderTransferLight(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 
-	int ithLevel;
-	for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
-		mipmapCenterLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		mipmapFacesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		mipmapCornersLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		if (ithLevel > 0)
-		{
-			borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		int ithLevel;
+		for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+			mipmapCenterLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapFacesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapCornersLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			if (ithLevel > 0)
+			{
+				borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			}
 		}
 	}
+
+
 	//spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 	//borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 
@@ -1032,7 +1075,7 @@ void Graphics::clearNodeMap()
 	glDrawArraysIndirect(GL_POINTS, 0);
 }
 
-void Graphics::shadowMap(Scene & renderingScene) {
+void Graphics::shadowMap(Scene & renderingScene, const PointLight& light) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("shadowMap");
 	glUseProgram(material->program);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMapBuffer->frameBuffer);
@@ -1050,10 +1093,10 @@ void Graphics::shadowMap(Scene & renderingScene) {
 	//m_lightViewMat = renderingScene.renderingCamera->viewMatrix;// glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
 	//m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
 
-	m_lightPos = glm::vec3(0, 0.0, 1);
+	auto lightPos = light.position;
 	m_lightDir = glm::vec3(0, -1, -1);
-	m_lightViewMat = glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
-	m_lightProjMat = glm::ortho(-0.9, 0.9, -0.9, 0.9, 0.0, 2.0); // renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
+	m_lightViewMat = glm::lookAt(lightPos, lightPos + m_lightDir, glm::vec3(0, 1, 0));
+	m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-0.9, 0.9, -0.9, 0.9, 0.0, 2.0);
 
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "V"), 1, GL_FALSE, glm::value_ptr(m_lightViewMat));
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "P"), 1, GL_FALSE, glm::value_ptr(m_lightProjMat));
@@ -1063,7 +1106,7 @@ void Graphics::shadowMap(Scene & renderingScene) {
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::lightInjection(Scene& renderingScene) {
+void Graphics::lightInjection(Scene& renderingScene, const PointLight& light) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("lightInjection");
 	glUseProgram(material->program);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
