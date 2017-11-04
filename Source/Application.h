@@ -22,7 +22,7 @@ public:
 	const int DEFAULT_VSYNC = 0; // 0 is no vSync, can also use negative vSync (check GLFW docs).
 
 	int state = 0; // Used to simplify debugging. Sent to all shaders continuously.
-	Graphics::RenderingMode currentRenderingMode = Graphics::RenderingMode::VOXEL_CONE_TRACING;
+	Graphics::RenderingMode currentRenderingMode = Graphics::RenderingMode::VOXELIZATION_VISUALIZATION;
 	InputState currentInputState = InputState::FREE_LOOK;
 
 	~Application();

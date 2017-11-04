@@ -217,6 +217,7 @@ void Graphics::initSparseVoxelization() {
 
   // Init light node map
   m_shadowMapRes = 512;
+  m_shadowMapRes = std::max(m_nodePoolDim, m_shadowMapRes);
   m_nNodeMapLevels = (int)log2f(m_shadowMapRes) + 1;
   m_nodeMapSizes.resize(m_nNodeMapLevels);
   m_nodeMapOffsets.resize(m_nNodeMapLevels);
@@ -226,17 +227,16 @@ void Graphics::initSparseVoxelization() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
   glBindTexture(GL_TEXTURE_2D, 0);
-  for (int i = 0; i < m_nNodeMapLevels; i++)
+  for (int i = m_numLevels-1, res = m_shadowMapRes; i >= 0; i--, res /= 2)
   {
-	  int res = (int)powf(2.0, float(i));
 	  m_nodeMapSizes[i] = glm::ivec2(res, res);
   }
-  m_nodeMapOffsets[m_nNodeMapLevels - 1] = glm::ivec2(m_shadowMapRes/2, 0);
-  m_nodeMapOffsets[0] = glm::ivec2(0, 0);
-  for (int i = 1; i < m_nNodeMapLevels - 1; i++)
+  m_nodeMapOffsets[m_numLevels - 1] = glm::ivec2(m_shadowMapRes/2, 0);
+  for (int i = m_numLevels - 2, lastPos = m_shadowMapRes; i >= 0; i--)
   {
-	  int yPos = m_nodeMapOffsets[i - 1].y + m_nodeMapSizes[i - 1].y;
+	  int yPos = lastPos - m_nodeMapSizes[i].x;
 	  m_nodeMapOffsets[i] = glm::ivec2(0, yPos);
+	  lastPos = yPos;
   }
 
   // Init shadow map
@@ -267,9 +267,9 @@ void Graphics::initSparseVoxelization() {
 	  indirectCommand.numVertices = numVoxelsOnLevel;
 	  m_nodePoolOnLevelCmdBuf[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   }
-  for (int iLevel = 0; iLevel < MAX_NODE_POOL_LEVELS; ++iLevel)
+  for (int iLevel = 0; iLevel < m_nNodeMapLevels; ++iLevel)
   {
-	  int res = pow(2U, iLevel);
+	  int res = m_nodeMapSizes[iLevel].x;
 	  indirectCommand.numVertices = res * res;
 	  m_nodeMapOnLevelCmdBuf[iLevel] = std::shared_ptr<IndexBuffer>(new IndexBuffer(GL_DRAW_INDIRECT_BUFFER, sizeof(indirectCommand), GL_STATIC_DRAW, &indirectCommand));
   }
@@ -402,22 +402,37 @@ void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
 {
 	clearBrickPool(renderingScene, false);
 	clearNodeMap();
+
 	lightInjection(renderingScene);
 
 	spreadLeafBrickLight(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	borderTransferLight(m_nNodeMapLevels-1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	borderTransferLight(m_numLevels-1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 
 	int ithLevel;
-	for (int ithLevel = m_nNodeMapLevels - 1; ithLevel >= 0; --ithLevel) {
+	for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
 		mipmapCenterLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 		mipmapFacesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 		mipmapCornersLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		mipmapEdgesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 		if (ithLevel > 0)
 		{
-			//borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 		}
 	}
+	//spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+
+	//int ithLevel = m_numLevels - 2;
+	//for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+	//	mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//	mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//	mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//	mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//	if (ithLevel > 0)
+	//	{
+	//		borderTransfer(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+	//	}
+	//}
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -1035,16 +1050,17 @@ void Graphics::shadowMap(Scene & renderingScene) {
 	//m_lightViewMat = renderingScene.renderingCamera->viewMatrix;// glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
 	//m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
 
-	m_lightPos = glm::vec3(0, 0.5, 1);
+	m_lightPos = glm::vec3(0, 0.0, 1);
 	m_lightDir = glm::vec3(0, -1, -1);
 	m_lightViewMat = glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
-	m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
+	m_lightProjMat = glm::ortho(-0.9, 0.9, -0.9, 0.9, 0.0, 2.0); // renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
 
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "V"), 1, GL_FALSE, glm::value_ptr(m_lightViewMat));
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "P"), 1, GL_FALSE, glm::value_ptr(m_lightProjMat));
 	//uploadCamera(*renderingScene.renderingCamera, material->program);
 
 	renderQueue(renderingScene.renderers, material->program, true);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 void Graphics::lightInjection(Scene& renderingScene) {
@@ -1085,7 +1101,7 @@ void Graphics::lightInjection(Scene& renderingScene) {
 	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
 	glBindImageTexture(textureUnitIdx, m_lightNodeMap->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
 
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodeMapOnLevelCmdBuf[m_nNodeMapLevels-1]->m_bufferID);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodeMapOnLevelCmdBuf[m_numLevels-1]->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
@@ -1097,10 +1113,10 @@ void Graphics::spreadLeafBrickLight(std::shared_ptr<Texture3D> brickPoolTexture)
 
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodeMapOnLevelCmdBuf[m_nNodeMapLevels-1]->m_bufferID);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodeMapOnLevelCmdBuf[m_numLevels - 1]->m_bufferID);
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
-	glUniform1ui(glGetUniformLocation(material->program, "level"), m_nNodeMapLevels - 1);
+	glUniform1ui(glGetUniformLocation(material->program, "level"), m_numLevels - 1);
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
 
