@@ -201,17 +201,17 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = 0.02;// 0.1953125;
 
 	// Trace.
-	//while(dist < 5 && acc.a < 1){
-	//	vec3 c = from + dist * direction;
-	//	//c = scaleAndBias(from + dist * direction);
-	//	float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
-	//	float level = log2(l);
-	//	float ll = (level + 1) * (level + 1);
-	//	//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
-	//	vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-	//	acc += voxel *pow(1 - voxel.a, 2);
-	//	dist += VOXEL_SIZE * 2 *ll;
-	//}
+	while(dist < 5 && acc.a < 1){
+		vec3 c = from + dist * direction;
+		//c = scaleAndBias(from + dist * direction);
+		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
+		float level = log2(l);
+		float ll = (level + 1) * (level + 1);
+		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
+		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
+		acc += voxel *pow(1 - voxel.a, 2) * 0.05;
+		dist += VOXEL_SIZE * 2 *ll * 0.1;
+	}
 	acc = getSVOValue(from, brickPool_irradiance, 5);
 	return acc.xyz;
 	//return pow(acc.rgb * 2.0, vec3(1.5));

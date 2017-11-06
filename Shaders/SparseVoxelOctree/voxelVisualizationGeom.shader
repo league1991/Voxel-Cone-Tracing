@@ -52,7 +52,7 @@ void main(){
 	ivec3 brickAddress = In[0].brickAddress;
 
 	float deltaTex = levelTexSizeG[levelG];
-	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.9;
+	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.95;
 	bool validAddress = brickAddress.r >= 0;
 
 	float alphaFactor = 0.4 / pow(8.0, float(numLevels) - float(levelG));

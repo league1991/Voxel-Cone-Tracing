@@ -117,11 +117,11 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 		glViewport(0, 0, viewportWidth, viewportHeight);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
 		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
 		glEnable(GL_CULL_FACE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCullFace(GL_BACK);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
@@ -216,7 +216,7 @@ void Graphics::initVoxelization()
 void Graphics::initSparseVoxelization() {
 
   // Initialize node pool
-	m_nodePoolDim = 16;
+	m_nodePoolDim = 64;
 	m_numLevels = (int)log2f(m_nodePoolDim);
 	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
@@ -679,10 +679,18 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 		glViewport(0, 0, viewportWidth, viewportHeight);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
+		if (m_voxelBlendMode == 0)
+		{
+			glEnable(GL_DEPTH_TEST);
+			glDisable(GL_BLEND);
+		}
+		else
+		{
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_BLEND);
+		}
 		glDisable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glDisable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glBlendColor(1.0, 1.0, 1.0, 2.0);
 	}
@@ -717,10 +725,16 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
-	//m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
-	//glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-	m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_color", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	if (m_brickTexType == 0)
+	{
+		m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	}
+	else
+	{
+		m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_color", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	}
 
 	// Render.
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);

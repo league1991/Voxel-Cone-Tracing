@@ -98,8 +98,7 @@ void main() {
   
   // Center
   for (int i = 0; i < 8; ++i) {
-    //col += 0.125 * voxelValues[i];
-	  col = max(col, voxelValues[i]);
+    col += 0.125 * voxelValues[i];
   }
 
   imageStore(brickPool_value, brickAddress + ivec3(1,1,1), col);
