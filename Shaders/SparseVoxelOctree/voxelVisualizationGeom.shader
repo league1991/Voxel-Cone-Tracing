@@ -55,7 +55,7 @@ void main(){
 	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.9;
 	bool validAddress = brickAddress.r >= 0;
 
-	float alphaFactor = 0.2 / pow(8.0, float(numLevels) - float(levelG));
+	float alphaFactor = 0.4 / pow(8.0, float(numLevels) - float(levelG));
 	Out.color = vec4(1, 0, 0, alphaFactor);
 
 	//vec4 clr = vec4(0, 0, 0, 0);

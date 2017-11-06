@@ -32,7 +32,7 @@ uniform usamplerBuffer nodePool_Neighbour;
 uniform usamplerBuffer levelAddressBuffer;
 layout(rgba8) uniform image3D brickPool_value;
 
-uniform int level;
+uniform uint level;
 uniform uint numLevels;
 uniform uint axis;
 

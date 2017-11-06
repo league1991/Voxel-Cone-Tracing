@@ -46,18 +46,51 @@
 layout(r32ui) uniform readonly uimageBuffer nodePool_next;
 layout(r32ui) uniform readonly uimageBuffer nodePool_color;
 
-layout(rgba8) uniform image3D brickPool_color;
-layout(rgba8) uniform image3D brickPool_irradiance;
-layout(rgba8) uniform image3D brickPool_normal;
+//layout(rgba8) uniform image3D brickPool_color;
+//layout(rgba8) uniform image3D brickPool_irradiance;
+//layout(rgba8) uniform image3D brickPool_normal;
+uniform sampler3D brickPool_color;
+uniform sampler3D brickPool_irradiance;
+uniform sampler3D brickPool_normal;
 
 uniform mat4 voxelGridTransformI;
 uniform uint numLevels;
+uniform ivec3 brickPool_Dim;
 
 #include "SparseVoxelOctree/_utilityFunctions.shader"
 #include "SparseVoxelOctree/_traverseUtil.shader"
 #include "SparseVoxelOctree/_octreeTraverse.shader"
 
-vec4 getSVOValue(vec3 posWorld, layout(rgba8) image3D brickPoolImg, uint maxLevel) {
+int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uint maxLevel) {
+	vec3 nodePosTex = vec3(0.0);
+	vec3 nodePosMaxTex = vec3(1.0);
+	int nodeAddress = 0;
+	foundOnLevel = 0;
+	float sideLength = 1.0;
+
+	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
+		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
+		if (childStartAddress == 0U) {
+			break;
+		}
+
+		uvec3 offVec = uvec3(2.0 * posTex);
+		uint off = offVec.x + 2U * offVec.y + 4U * offVec.z;
+
+		// Restart while-loop with the child node (aka recursion)
+		nodeAddress = int(childStartAddress + off);
+		nodePosTex += vec3(childOffsets[off]) * vec3(sideLength);
+		nodePosMaxTex = nodePosTex + vec3(sideLength);
+
+		sideLength = sideLength / 2.0;
+		posTex = 2.0 * posTex - vec3(offVec);
+	} // level-for
+
+	return nodeAddress;
+}
+
+vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 	vec3 posTex = (voxelGridTransformI * vec4(posWorld, 1.0)).xyz;
 
 	if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
@@ -65,9 +98,10 @@ vec4 getSVOValue(vec3 posWorld, layout(rgba8) image3D brickPoolImg, uint maxLeve
 		return vec4(0,0,0,1);
 	}
 	uint onLevel = 0;
-	int nodeAddress = traverseToLevel(posTex, onLevel, maxLevel);
+	int nodeAddress = traverseToLevelAndGetOffset(posTex, onLevel, maxLevel);
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
-	vec4 brickVal = imageLoad(brickPoolImg, brickAddress);
+	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
+	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
 	return brickVal;
 }
 
@@ -164,23 +198,23 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Controls bleeding from close surfaces.
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
-	float dist = 0.01;// 0.1953125;
+	float dist = 0.02;// 0.1953125;
 
 	// Trace.
-	while(dist < 5 && acc.a < 1){
-		vec3 c = from + dist * direction;
-		//c = scaleAndBias(from + dist * direction);
-		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
-		float level = log2(l);
-		float ll = (level + 1) * (level + 1);
-		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
-		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-		acc += voxel;// *pow(1 - voxel.a, 2);
-		dist += VOXEL_SIZE * 2;// *ll;
-	}
+	//while(dist < 5 && acc.a < 1){
+	//	vec3 c = from + dist * direction;
+	//	//c = scaleAndBias(from + dist * direction);
+	//	float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
+	//	float level = log2(l);
+	//	float ll = (level + 1) * (level + 1);
+	//	//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
+	//	vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
+	//	acc += voxel *pow(1 - voxel.a, 2);
+	//	dist += VOXEL_SIZE * 2 *ll;
+	//}
+	acc = getSVOValue(from, brickPool_irradiance, 5);
 	return acc.xyz;
 	//return pow(acc.rgb * 2.0, vec3(1.5));
-	//return getSVOValue(from, brickPool_irradiance).xyz;
 }
 
 // Traces a specular voxel cone.
@@ -243,27 +277,27 @@ vec3 indirectDiffuseLight(){
 	// Trace front cone
 	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
 
-	//// Trace 4 side cones.
-	//const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
-	//const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
-	//const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
-	//const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
+	// Trace 4 side cones.
+	const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
+	const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
+	const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
+	const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
 
-	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
-	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
-	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
-	//acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
+	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
+	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
+	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
+	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
 
-	//// Trace 4 corner cones.
-	//const vec3 c1 = mix(normal, corner, ANGLE_MIX);
-	//const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
-	//const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
-	//const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
+	// Trace 4 corner cones.
+	const vec3 c1 = mix(normal, corner, ANGLE_MIX);
+	const vec3 c2 = mix(normal, -corner, ANGLE_MIX);
+	const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
+	const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
 
-	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
-	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
-	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
-	//acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
+	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
+	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
+	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
+	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
 
 	// Return result.
 	return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));

@@ -113,11 +113,12 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 
 	// GL Settings.
 	{
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glViewport(0, 0, viewportWidth, viewportHeight);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glCullFace(GL_BACK);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glEnable(GL_BLEND);
@@ -136,13 +137,10 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 	textureUnitIdx++;
 	m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_irradiance", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 	textureUnitIdx++;
 	m_brickPoolTextures[BRICK_POOL_NORMAL]->Activate(material->program, "brickPool_normal", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
 	// Upload uniforms.
 	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
@@ -218,7 +216,7 @@ void Graphics::initVoxelization()
 void Graphics::initSparseVoxelization() {
 
   // Initialize node pool
-	m_nodePoolDim = 64;
+	m_nodePoolDim = 16;
 	m_numLevels = (int)log2f(m_nodePoolDim);
 	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
@@ -426,13 +424,10 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 
   for (int level = 0; level < m_numLevels-1; level++)
   {
-	  if (level != 0)
-	  {
-		  findNeighbours(renderingScene, level);
-	  }
 	  // allocate nodes in level+1
 	  flagNode(renderingScene);
 	  allocateNode(renderingScene, level);
+	  findNeighbours(renderingScene, level+1);
   }
 
   // write node count to draw buffer
@@ -473,37 +468,36 @@ void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
 		shadowMap(renderingScene, light);
 		lightInjection(renderingScene, light);
 
-		spreadLeafBrickLight(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-		borderTransferLight(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//spreadLeafBrickLight(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//borderTransferLight(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 
-		int ithLevel;
+		//int ithLevel;
+		//for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+		//	mipmapCenterLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//	mipmapFacesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//	mipmapCornersLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//	mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//	if (ithLevel > 0)
+		//	{
+		//		borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		//	}
+		//}
+
+		spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+		borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+
+		int ithLevel = m_numLevels - 2;
 		for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
-			mipmapCenterLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-			mipmapFacesLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-			mipmapCornersLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+			mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 			mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 			if (ithLevel > 0)
 			{
-				borderTransferLight(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
+				borderTransfer(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
 			}
 		}
 	}
-
-
-	//spreadLeafBrick(m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-
-	//int ithLevel = m_numLevels - 2;
-	//for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
-	//	mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//	mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//	mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//	mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//	if (ithLevel > 0)
-	//	{
-	//		borderTransfer(ithLevel, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]);
-	//	}
-	//}
 }
 
 void Graphics::clearNodePool(Scene & renderingScene) {
@@ -685,10 +679,10 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 		glViewport(0, 0, viewportWidth, viewportHeight);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glEnable(GL_BLEND);
+		glDisable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glBlendColor(1.0, 1.0, 1.0, 2.0);
 	}
@@ -821,14 +815,20 @@ void Graphics::findNeighbours(Scene & renderingScene, int level) {
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 
 	int nodePoolIndices[] = {
-		NODE_POOL_NEIGH_X,		NODE_POOL_NEIGH_X_NEG,
-		NODE_POOL_NEIGH_Y,		NODE_POOL_NEIGH_Y_NEG,
-		NODE_POOL_NEIGH_Z,		NODE_POOL_NEIGH_Z_NEG,
+		NODE_POOL_NEIGH_X,
+		NODE_POOL_NEIGH_Y,
+		NODE_POOL_NEIGH_Z,
+		NODE_POOL_NEIGH_X_NEG,
+		NODE_POOL_NEIGH_Y_NEG,
+		NODE_POOL_NEIGH_Z_NEG,
 	};
 	std::string shaderVars[] = {
-		"nodePool_X",		"nodePool_X_neg",
-		"nodePool_Y",		"nodePool_Y_neg",
-		"nodePool_Z",		"nodePool_Z_neg",
+		"nodePool_X",
+		"nodePool_Y",
+		"nodePool_Z",
+		"nodePool_X_neg",
+		"nodePool_Y_neg",
+		"nodePool_Z_neg",
 	};
 	for (int i = 0; i < 6; i++)
 	{
@@ -1122,8 +1122,8 @@ void Graphics::shadowMap(Scene & renderingScene, const PointLight& light) {
 	//m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
 
 	auto lightPos = light.position;
-	m_lightDir = glm::vec3(0, -1, -1);
-	m_lightViewMat = glm::lookAt(lightPos, lightPos + m_lightDir, glm::vec3(0, 1, 0));
+	m_lightDir = glm::vec3(0, -1, -0);
+	m_lightViewMat = glm::lookAt(lightPos, lightPos + m_lightDir, glm::vec3(0, 0, 1));
 	m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-0.9, 0.9, -0.9, 0.9, 0.0, 2.0);
 
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "V"), 1, GL_FALSE, glm::value_ptr(m_lightViewMat));
