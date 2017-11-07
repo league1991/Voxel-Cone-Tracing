@@ -146,7 +146,7 @@ private:
   };
   std::shared_ptr<TextureBuffer> m_nodePoolTextures[NODE_POOL_NUM_TEXTURES];
   std::shared_ptr<TextureBuffer> m_levelAddressBuffer;
-  int m_nodePoolDim;
+  int m_nodePoolDim; // number of different voxels along one edge
   int m_numLevels; // number of levels of **interior** nodes
   int m_maxNodes; // max nodes = 1 + 8 + 8^2 + ... + nodePoolDim ^ 3
   std::shared_ptr<IndexBuffer> m_nextFreeNode;		// atomic counter for next free node
