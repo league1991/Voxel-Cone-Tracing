@@ -102,6 +102,7 @@ private:
   void flagNode(Scene& renderingScene);
   void allocateNode(Scene& renderingScene, int level);
   void findNeighbours(Scene& renderingScene, int level);
+  void flagBrick();
   void allocateBrick();
   void writeLeafNode();
   void spreadLeafBrick(std::shared_ptr<Texture3D> brickPoolTexture);

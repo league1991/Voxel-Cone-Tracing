@@ -30,7 +30,7 @@ uniform usamplerBuffer nodePool_color;
 uniform usamplerBuffer nodePool_Neighbour;
 
 uniform usamplerBuffer levelAddressBuffer;
-layout(rgba8) uniform image3D brickPool_value;
+layout(rgba8) uniform volatile image3D brickPool_value;
 
 uniform uint level;
 uniform uint numLevels;
@@ -67,16 +67,21 @@ void main() {
     return;  // The requested threadID-node does not belong to the current level
   }
 
-  uint neighbourAddress = texelFetch(nodePool_Neighbour, int(nodeAddress)).x;
-  
-  if (neighbourAddress == 0) {
+  uint brickAddrU = texelFetch(nodePool_color, int(nodeAddress)).x;
+  ivec3 brickAddr = ivec3(uintXYZ10ToVec3(brickAddrU));
+
+  uint neighbourAddress = texelFetch(nodePool_Neighbour, int(nodeAddress)).x;  
+  if (neighbourAddress == 0 || nodeAddress == neighbourAddress) {
     return;
   }
 
-  ivec3 brickAddr = ivec3(uintXYZ10ToVec3(texelFetch(nodePool_color, int(nodeAddress)).x));
-  ivec3 nBrickAddr = ivec3(uintXYZ10ToVec3(texelFetch(nodePool_color, int(neighbourAddress)).x));
+  uint nBrickAddrU = texelFetch(nodePool_color, int(neighbourAddress)).x;
+  ivec3 nBrickAddr = ivec3(uintXYZ10ToVec3(nBrickAddrU));
+  if (brickAddr == nBrickAddr)
+  {
+	  return;
+  }
 
-  
   if (axis == AXIS_X) {
     for (int y = 0; y <= 2; ++y) {
       for (int z = 0; z <= 2; ++z) {
@@ -86,14 +91,17 @@ void main() {
         vec4 neighbourBorderVal = imageLoad(brickPool_value, nBrickAddr + nOffset);
         memoryBarrier();
 
-        vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
-        imageStore(brickPool_value, brickAddr + offset, finalVal);
+		//vec4 finalVal = vec4(float(gl_VertexID * 12345 % 256), float(gl_VertexID * 12355 % 256), float(gl_VertexID * 13345 % 256), 255) / 255.0;// getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
+		vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal); 
+		imageStore(brickPool_value, brickAddr + offset, finalVal);
         imageStore(brickPool_value, nBrickAddr + nOffset, finalVal /* vec4(1,0,0,1)*/);
+		memoryBarrier();
       }
     }
   }
 
-  else if (axis == AXIS_Y) {
+  else 
+   if (axis == AXIS_Y) {
     for (int x = 0; x <= 2; ++x) {
       for (int z = 0; z <= 2; ++z) {
         ivec3 offset = ivec3(x,2,z);
@@ -102,15 +110,17 @@ void main() {
         vec4 neighbourBorderVal = imageLoad(brickPool_value, nBrickAddr + nOffset);
         memoryBarrier();
 
-        vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal);
-        imageStore(brickPool_value, brickAddr + offset, finalVal);
+		//vec4 finalVal = vec4(float(gl_VertexID * 12345 % 256), float(gl_VertexID * 12355 % 256), float(gl_VertexID * 13345 % 256), 255) / 255.0;// getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
+		vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal);
+		imageStore(brickPool_value, brickAddr + offset, finalVal);
         imageStore(brickPool_value, nBrickAddr + nOffset, finalVal/*vec4(0,1,0,1)*/);
 
       }
     }
   }
 
-  else if (axis == AXIS_Z) {
+  else
+  if (axis == AXIS_Z) {
     for (int x = 0; x <= 2; ++x) {
       for (int y = 0; y <= 2; ++y) {
         ivec3 offset = ivec3(x,y,2);
@@ -119,9 +129,11 @@ void main() {
         vec4 neighbourBorderVal = imageLoad(brickPool_value, nBrickAddr + nOffset);
         memoryBarrier();
 
+		//vec4 finalVal = vec4(float(gl_VertexID * 12345 % 256), float(gl_VertexID * 12355 % 256), float(gl_VertexID * 13345 % 256), 255) / 255.0;// getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
         vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal);
         imageStore(brickPool_value, brickAddr + offset, finalVal);
-        imageStore(brickPool_value, nBrickAddr + nOffset, finalVal/*vec4(0,0,1,1)*/);        
+        imageStore(brickPool_value, nBrickAddr + nOffset, finalVal/*vec4(0,0,1,1)*/);
+		memoryBarrier();
       }
     }
   }  

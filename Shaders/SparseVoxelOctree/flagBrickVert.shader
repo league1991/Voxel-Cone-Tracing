@@ -1,16 +1,12 @@
 
 #version 420 core
 
+#include "SparseVoxelOctree/_utilityFunctions.shader"
+
 layout(r32ui) uniform volatile uimageBuffer voxelFragmentListPosition;
 layout(r32ui) uniform volatile uimageBuffer nodePool_next;
 uniform uint voxelGridResolution;
 uniform uint numLevels;
-
-#include "SparseVoxelOctree/_utilityFunctions.shader"
-//const uint NODE_MASK_VALUE = 0x3FFFFFFF;
-//const uint NODE_MASK_TAG = (0x00000001 << 31);
-//const uint NODE_MASK_TAG_STATIC = (0x00000003 << 30);
-//const uint NODE_NOT_FOUND = 0xFFFFFFFF;
 
 const uvec3 childOffsets[8] = {
 	uvec3(0, 0, 0),
@@ -31,6 +27,8 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel) {
 
 	for (uint iLevel = 0; iLevel < numLevels; ++iLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+		// mark brick
+		imageStore(nodePool_next, nodeAddress, uvec4(nodeNext | NODE_MASK_BRICK));
 
 		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
 		if (childStartAddress == 0U) {
@@ -43,6 +41,7 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel) {
 
 		// Restart while-loop with the child node (aka recursion)
 		nodeAddress = int(childStartAddress + off);
+
 		nodePosTex += vec3(childOffsets[off]) * vec3(sideLength);
 		nodePosMaxTex = nodePosTex + vec3(sideLength);
 
@@ -53,13 +52,6 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel) {
 	return nodeAddress;
 }
 
-void flagNode(in uint nodeNext, in int address) {
-	// nodeNext is original node data
-	nodeNext = NODE_MASK_BRICK | nodeNext;
-	imageStore(nodePool_next, address, uvec4(nodeNext));
-	memoryBarrier();
-}
-
 void main() {
 	uint voxelPosU = imageLoad(voxelFragmentListPosition, gl_VertexID).x;
 	uvec3 voxelPos = uintXYZ10ToVec3(voxelPosU);
@@ -68,11 +60,4 @@ void main() {
 	uint onLevel = 0;
 	// find node without child and return its address
 	int nodeAddress = traverseOctree_simple(posTex, onLevel);
-
-	uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
-	flagNode(nodeNext, nodeAddress);
-	//if (onLevel < numLevels - 1) {
-	//	uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
-	//	flagNode(nodeNext, nodeAddress);
-	//}
 }

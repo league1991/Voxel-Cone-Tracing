@@ -30,12 +30,17 @@ void main() {
 
   for (uint i = 0; i < 8; ++i) {
     int address = int(tileAddress + i);
-	// allocate new brick
-    alloc3x3x3TextureBrick(address);
+	uint nodeNextU = imageLoad(nodePool_next, address).x;
+	if ((nodeNextU & NODE_MASK_BRICK) != 0)
+	{
+		// allocate new brick
+		alloc3x3x3TextureBrick(address);
+	}
+  }
 
-    //set Brick flag
-    uint nodeNextU = imageLoad(nodePool_next, address).x;
-    imageStore(nodePool_next, address,
-               uvec4(NODE_MASK_BRICK | nodeNextU, 0, 0, 0));
+  // root brick
+  if (gl_VertexID == 0)
+  {
+	  alloc3x3x3TextureBrick(0);
   }
 }

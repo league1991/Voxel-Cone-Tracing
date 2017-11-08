@@ -15,7 +15,7 @@ void main() {
   //imageStore(nodePool_color,gl_VertexID,uvec4(0));
   //imageStore(nodePool_next,gl_VertexID,uvec4(0));
   //imageStore(nodePool_normal,gl_VertexID,uvec4(0));
-  imageStore(nodePool_X, gl_VertexID, uvec4(1));
+  imageStore(nodePool_X, gl_VertexID, uvec4(0));
   imageStore(nodePool_Y, gl_VertexID, uvec4(0));
   imageStore(nodePool_Z, gl_VertexID, uvec4(0));
   imageStore(nodePool_X_neg, gl_VertexID, uvec4(0));

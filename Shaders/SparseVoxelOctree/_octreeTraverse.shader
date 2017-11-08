@@ -14,7 +14,7 @@
   outLevel = 0;
   outSideLength = 1.0;
 
-  float sideLength = 1.0;
+  float sideLength = 0.5;
   int nodeAddress = 0;
 
   for (uint iLevel = 0; iLevel < numLevels; ++iLevel) {
@@ -58,7 +58,7 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel) {
   vec3 nodePosMaxTex = vec3(1.0);
   int nodeAddress = 0;
   foundOnLevel = 0;
-  float sideLength = 1.0;
+  float sideLength = 0.5;
   
   for (uint iLevel = 0; iLevel < numLevels; ++iLevel) {
     uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
@@ -89,7 +89,7 @@ int traverseToLevel(in vec3 posTex, out uint foundOnLevel, in uint maxLevel) {
 	vec3 nodePosMaxTex = vec3(1.0);
 	int nodeAddress = 0;
 	foundOnLevel = 0;
-	float sideLength = 1.0;
+	float sideLength = 0.5;
 
 	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
@@ -119,7 +119,7 @@ int traverseOctree_posOut(inout vec3 posTex, out uint foundOnLevel) {
   vec3 nodePosMaxTex = vec3(1.0);
   int nodeAddress = 0;
   foundOnLevel = 0;
-  float sideLength = 1.0;
+  float sideLength = 0.5;
   
   for (uint iLevel = 0; iLevel < numLevels; ++iLevel) {
     uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;

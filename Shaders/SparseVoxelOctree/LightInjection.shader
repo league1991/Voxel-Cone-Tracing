@@ -75,7 +75,7 @@ void main() {
   int nodeAddress = 0;            // Address in node pool
   vec3 nodePosTex = vec3(0.0);
   vec3 nodePosMaxTex = vec3(1.0);
-  float sideLength = 1.0;
+  float sideLength = 0.5;
 
   for (uint iLevel = 0U; iLevel < numLevels; ++iLevel) {
     // Store nodes during traversal in the nodeMap

@@ -19,6 +19,12 @@ uniform uint voxelGridResolution;
 #include "SparseVoxelOctree/_traverseUtil.shader"
 #include "SparseVoxelOctree/_octreeTraverse.shader"
 
+bool isEmpty(int nodeAddress)
+{
+	uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
+	return (nodeNext & NODE_MASK_BRICK) == 0;
+}
+
 void main() {
 	// Find the node for this position
 	uint voxelPosU = imageLoad(voxelFragmentListPosition, gl_VertexID).x;
@@ -41,42 +47,42 @@ void main() {
 
 	if (posTex.x + stepTex < 1) {
 		nX = traverseOctree_simple(posTex + vec3(stepTex, 0, 0), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nX)) {
 			nX = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.y + stepTex < 1) {
 		nY = traverseOctree_simple(posTex + vec3(0, stepTex, 0), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nY)) {
 			nY = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.z + stepTex < 1) {
 		nZ = traverseOctree_simple(posTex + vec3(0, 0, stepTex), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nZ)) {
 			nZ = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.x - stepTex > 0) {
 		nX_neg = traverseOctree_simple(posTex - vec3(stepTex, 0, 0), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nX_neg)) {
 			nX_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.y - stepTex > 0) {
 		nY_neg = traverseOctree_simple(posTex - vec3(0, stepTex, 0), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nY_neg)) {
 			nY_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.z - stepTex > 0) {
 		nZ_neg = traverseOctree_simple(posTex - vec3(0, 0, stepTex), neighbourLevel);
-		if (nodeLevel != neighbourLevel) {
+		if (nodeLevel != neighbourLevel || isEmpty(nZ_neg)) {
 			nZ_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
@@ -87,7 +93,31 @@ void main() {
 	imageStore(nodePool_X_neg, nodeAddress, uvec4(nX_neg));
 	imageStore(nodePool_Y_neg, nodeAddress, uvec4(nY_neg));
 	imageStore(nodePool_Z_neg, nodeAddress, uvec4(nZ_neg));
-
+/*
+	if (nY != 0)
+	{
+		imageStore(nodePool_Y_neg, nY, uvec4(nodeAddress));
+	}
+	if (nY_neg != 0)
+	{
+		imageStore(nodePool_Y, nY_neg, uvec4(nodeAddress));
+	}
+	if (nX != 0)
+	{
+		imageStore(nodePool_X_neg, nX, uvec4(nodeAddress));
+	}
+	if (nX_neg != 0)
+	{
+		imageStore(nodePool_X, nX_neg, uvec4(nodeAddress));
+	}
+	if (nZ != 0)
+	{
+		imageStore(nodePool_Z_neg, nZ, uvec4(nodeAddress));
+	}
+	if (nZ_neg != 0)
+	{
+		imageStore(nodePool_Z, nZ_neg, uvec4(nodeAddress));
+	}*/
 
 	/*
 	// First: Assign the neighbour-pointers between the children

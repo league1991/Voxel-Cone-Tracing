@@ -66,7 +66,7 @@ int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uin
 	vec3 nodePosMaxTex = vec3(1.0);
 	int nodeAddress = 0;
 	foundOnLevel = 0;
-	float sideLength = 1.0;
+	float sideLength = 0.5;
 
 	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
@@ -102,6 +102,7 @@ vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
 	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
 	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
+	//brickVal.xyz += posTex * 0.2;
 	return brickVal;
 }
 
@@ -201,7 +202,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = 0.02;// 0.1953125;
 
 	// Trace.
-	while(dist < 5 && acc.a < 1){
+	while(dist < 1 && acc.a < 1){
 		vec3 c = from + dist * direction;
 		//c = scaleAndBias(from + dist * direction);
 		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
@@ -209,10 +210,10 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		float ll = (level + 1) * (level + 1);
 		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
 		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-		acc += voxel *pow(1 - voxel.a, 2) * 0.05;
+		acc += voxel *pow(1 - voxel.a, 2) * 0.04;
 		dist += VOXEL_SIZE * 2 *ll * 0.1;
 	}
-	acc = getSVOValue(from, brickPool_irradiance, 5);
+	//acc = getSVOValue(from, brickPool_irradiance, 4);
 	return acc.xyz;
 	//return pow(acc.rgb * 2.0, vec3(1.5));
 }

@@ -250,6 +250,7 @@
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolNeighVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\clearNodePoolVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\findNeighbours.shader" />
+    <None Include="Shaders\SparseVoxelOctree\flagBrickVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\flagNodeVert.shader" />
     <None Include="Shaders\SparseVoxelOctree\LightInjection.shader" />
     <None Include="Shaders\SparseVoxelOctree\MipmapCenter.shader" />

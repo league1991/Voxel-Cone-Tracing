@@ -344,6 +344,7 @@ void Graphics::initSparseVoxelization() {
   store.AddNewMaterial("modifyIndirectBuffer", "SparseVoxelOctree\\modifyIndirectBufferVert.shader");
   store.AddNewMaterial("voxelVisualization", "SparseVoxelOctree\\voxelVisualizationVert.shader", "SparseVoxelOctree\\voxelVisualizationFrag.shader","SparseVoxelOctree\\voxelVisualizationGeom.shader");
   store.AddNewMaterial("flagNode", "SparseVoxelOctree\\flagNodeVert.shader");
+  store.AddNewMaterial("flagBrick", "SparseVoxelOctree\\flagBrickVert.shader");
   store.AddNewMaterial("allocateNode", "SparseVoxelOctree\\allocateNodeVert.shader");
   store.AddNewMaterial("findNeighbours", "SparseVoxelOctree\\findNeighbours.shader");
   store.AddNewMaterial("allocateBrick", "SparseVoxelOctree\\allocBricks.shader");
@@ -422,14 +423,16 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   // write fragment list length to draw buffer
   modifyIndirectBuffer(m_fragmentListCounter, m_fragmentListCmdBuf);
 
+  flagNode(renderingScene);
   for (int level = 0; level < m_numLevels-1; level++)
   {
 	  // allocate nodes in level+1
-	  flagNode(renderingScene);
 	  allocateNode(renderingScene, level);
+	  flagNode(renderingScene);
 	  findNeighbours(renderingScene, level+1);
   }
 
+  //flagBrick();
   // write node count to draw buffer
   modifyIndirectBuffer(m_nextFreeNode, m_nodePoolNodesCmdBuf);
 
@@ -537,6 +540,18 @@ void Graphics::clearNodePool(Scene & renderingScene) {
 	}
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolCmdBuf->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	// Clear level address buffer first
+	glBindBuffer(GL_TEXTURE_BUFFER, m_levelAddressBuffer->m_bufferID);
+	GLuint *ptr = (GLuint *)glMapBufferRange(GL_TEXTURE_BUFFER, 0, sizeof(GLuint) * MAX_NODE_POOL_LEVELS, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	for (int i = 0; i < MAX_NODE_POOL_LEVELS; i++)
+	{
+		ptr[i] = 0x0;
+	}
+	ptr[0] = 0;
+	ptr[1] = 1;
+	glUnmapBuffer(GL_TEXTURE_BUFFER);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
@@ -777,20 +792,6 @@ void Graphics::allocateNode(Scene & renderingScene, int level) {
 
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 
-	// Clear level address buffer first
-	if (level == 0)
-	{
-		glBindBuffer(GL_TEXTURE_BUFFER, m_levelAddressBuffer->m_bufferID);
-		GLuint *ptr = (GLuint *)glMapBufferRange(GL_TEXTURE_BUFFER, 0, sizeof(GLuint) * MAX_NODE_POOL_LEVELS, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
-		for (int i = 0; i < MAX_NODE_POOL_LEVELS; i++)
-		{
-			ptr[i] = 0x3FFFFFFF;
-		}
-		ptr[0] = 0;
-		ptr[1] = 1;
-		glUnmapBuffer(GL_TEXTURE_BUFFER);
-	}
-
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_levelAddressBuffer->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
@@ -809,7 +810,7 @@ void Graphics::allocateNode(Scene & renderingScene, int level) {
 		glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
 	}
 
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolUpToLevelCmdBuf[level]->m_bufferID);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolOnLevelCmdBuf[level]->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 }
@@ -854,6 +855,31 @@ void Graphics::findNeighbours(Scene & renderingScene, int level) {
 	}
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
+	glDrawArraysIndirect(GL_POINTS, 0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+void Graphics::flagBrick() {
+	MaterialStore& matStore = MaterialStore::getInstance();
+	const Material * material = matStore.findMaterialWithName("flagBrick");
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glUseProgram(material->program);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+	int textureUnitIdx = 0;
+	m_fragmentList->Activate(material->program, "voxelFragmentListPosition", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+
+	textureUnitIdx++;
+	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
+	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+
+	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
+
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
@@ -979,23 +1005,26 @@ void Graphics::borderTransfer(int level, std::shared_ptr<Texture3D> brickPoolTex
 
 
 	textureUnitIdx++;
-	glUniform1ui(glGetUniformLocation(material->program, "axis"),0);
-	m_nodePoolTextures[NODE_POOL_NEIGH_X]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_X]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-	glDrawArraysIndirect(GL_POINTS, 0);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	for (int i = 0; i < 1; i++)
+	{
+		glUniform1ui(glGetUniformLocation(material->program, "axis"), 0);
+		m_nodePoolTextures[NODE_POOL_NEIGH_X]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_X]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glDrawArraysIndirect(GL_POINTS, 0);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	glUniform1ui(glGetUniformLocation(material->program, "axis"), 1);
-	m_nodePoolTextures[NODE_POOL_NEIGH_Y]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Y]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-	glDrawArraysIndirect(GL_POINTS, 0);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glUniform1ui(glGetUniformLocation(material->program, "axis"), 1);
+		m_nodePoolTextures[NODE_POOL_NEIGH_Y]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Y]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glDrawArraysIndirect(GL_POINTS, 0);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	glUniform1ui(glGetUniformLocation(material->program, "axis"), 2);
-	m_nodePoolTextures[NODE_POOL_NEIGH_Z]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
-	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Z]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-	glDrawArraysIndirect(GL_POINTS, 0);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glUniform1ui(glGetUniformLocation(material->program, "axis"), 2);
+		m_nodePoolTextures[NODE_POOL_NEIGH_Z]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Z]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glDrawArraysIndirect(GL_POINTS, 0);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	}
 }
 
 void Graphics::mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
