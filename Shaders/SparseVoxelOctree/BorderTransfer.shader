@@ -91,8 +91,8 @@ void main() {
         vec4 neighbourBorderVal = imageLoad(brickPool_value, nBrickAddr + nOffset);
         memoryBarrier();
 
-		//vec4 finalVal = vec4(float(gl_VertexID * 12345 % 256), float(gl_VertexID * 12355 % 256), float(gl_VertexID * 13345 % 256), 255) / 255.0;// getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
-		vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal); 
+		vec4 finalVal = vec4(float(gl_VertexID * 12345 % 256), float(gl_VertexID * 12355 % 256), float(gl_VertexID * 13345 % 256), 255) / 255.0;// getFinalVal(borderVal, neighbourBorderVal);// TODO: Maybe we need a /2 here and have to use atomics
+		//vec4 finalVal = getFinalVal(borderVal, neighbourBorderVal); 
 		imageStore(brickPool_value, brickAddr + offset, finalVal);
         imageStore(brickPool_value, nBrickAddr + nOffset, finalVal /* vec4(1,0,0,1)*/);
 		memoryBarrier();

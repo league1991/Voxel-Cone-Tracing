@@ -99,7 +99,7 @@ private:
   void voxelizeScene(Scene& renderingScene);
   void modifyIndirectBuffer(std::shared_ptr<IndexBuffer> valueBuffer, std::shared_ptr<TextureBuffer> commandBuffer);
   void visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth, unsigned int viewportHeight, int level);
-  void flagNode(Scene& renderingScene);
+  void flagNode(Scene& renderingScene, int level);
   void allocateNode(Scene& renderingScene, int level);
   void findNeighbours(Scene& renderingScene, int level);
   void flagBrick();

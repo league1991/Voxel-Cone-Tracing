@@ -423,12 +423,12 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   // write fragment list length to draw buffer
   modifyIndirectBuffer(m_fragmentListCounter, m_fragmentListCmdBuf);
 
-  flagNode(renderingScene);
+  flagNode(renderingScene, 0);
   for (int level = 0; level < m_numLevels-1; level++)
   {
 	  // allocate nodes in level+1
 	  allocateNode(renderingScene, level);
-	  flagNode(renderingScene);
+	  flagNode(renderingScene, level+1);
 	  findNeighbours(renderingScene, level+1);
   }
 
@@ -757,7 +757,7 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::flagNode(Scene & renderingScene) {
+void Graphics::flagNode(Scene & renderingScene, int level) {
 	MaterialStore& matStore = MaterialStore::getInstance();
 	const Material * material = matStore.findMaterialWithName("flagNode");
 
@@ -772,10 +772,14 @@ void Graphics::flagNode(Scene & renderingScene) {
 	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
+	//textureUnitIdx++;
+	//m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
+	//glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32UI);
 
 	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
+	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
@@ -825,6 +829,8 @@ void Graphics::findNeighbours(Scene & renderingScene, int level) {
 	int textureUnitIdx = 0;
 	m_fragmentList->Activate(material->program, "voxelFragmentListPosition", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_fragmentList->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
+	//m_nodePoolTextures[NODE_POOL_COLOR]->Activate(material->program, "nodePool_color", textureUnitIdx);
+	//glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_COLOR]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
@@ -856,7 +862,8 @@ void Graphics::findNeighbours(Scene & renderingScene, int level) {
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "voxelGridResolution"), m_nodePoolDim);
 
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
+	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_fragmentListCmdBuf->m_bufferID);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_nodePoolOnLevelCmdBuf[level]->m_bufferID);
 	glDrawArraysIndirect(GL_POINTS, 0);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
