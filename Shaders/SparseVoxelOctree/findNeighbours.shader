@@ -1,8 +1,10 @@
 
 #version 430 core
 
-layout(r32ui) uniform readonly uimageBuffer nodePool_next;
-layout(r32ui) uniform readonly uimageBuffer voxelFragmentListPosition;
+layout(r32ui) uniform uimageBuffer nodePool_next;
+//uniform usamplerBuffer levelAddressBuffer;
+layout(r32ui) uniform uimageBuffer levelAddressBuffer;
+//layout(r32ui) uniform readonly uimageBuffer voxelFragmentListPosition;
 
 layout(r32ui) uniform uimageBuffer nodePool_X;
 layout(r32ui) uniform uimageBuffer nodePool_Y;
@@ -15,9 +17,13 @@ uniform uint level;
 uniform uint numLevels;
 uniform uint voxelGridResolution;
 
+#define THREAD_MODE 0
+
 #include "SparseVoxelOctree/_utilityFunctions.shader"
+//#include "SparseVoxelOctree/_threadNodeUtil.shader"
 #include "SparseVoxelOctree/_traverseUtil.shader"
 #include "SparseVoxelOctree/_octreeTraverse.shader"
+
 
 bool isEmpty(int nodeAddress)
 {
@@ -26,15 +32,39 @@ bool isEmpty(int nodeAddress)
 }
 
 void main() {
-	// Find the node for this position
-	uint voxelPosU = imageLoad(voxelFragmentListPosition, gl_VertexID).x;
-	uvec3 voxelPos = uintXYZ10ToVec3(voxelPosU);
-	vec3 posTex = vec3(voxelPos) / vec3(voxelGridResolution);
+	int levelBeginAddress = int(imageLoad(levelAddressBuffer, int(level)).x);
+	int nodeAddress = levelBeginAddress + gl_VertexID;
+
+	uint nodeNextU = imageLoad(nodePool_next, nodeAddress).x;
+
+	if ((nodeNextU & NODE_MASK_BRICK) == 0U) {
+		return;
+	}
+
+	//uint nodeAddressU = getThreadNode();
+	//if (nodeAddressU == NODE_NOT_FOUND) {
+	//	return;  // The requested threadID-node does not belong to the current level
+	//}
+
+	// load node center position from node_next
+	//int nodeAddress = int(nodeNextU);
+	//uint posTexI = (imageLoad(nodePool_next, nodeAddress).x & NODE_MASK_VALUE);
+	//if ((posTexI & NODE_MASK_BRICK) == 0) {
+	//	return;
+	//}
+	vec3 posTex = vec3(uintXYZ10ToVec3(nodeNextU & NODE_MASK_VALUE)) / float(voxelGridResolution);
+	// then set node_next to 0
+	imageStore(nodePool_next, nodeAddress, uvec4(NODE_MASK_BRICK));
+
 	float stepTex = 1.0 / float(pow2[level]);
 	//stepTex *= 0.99;
 
 	uint nodeLevel = 0;
-	int nodeAddress = traverseOctree_simple(posTex, nodeLevel);
+	int nodeAddress2 = traverseOctree_simple(posTex, nodeLevel);
+	//if (nodeAddress2 != nodeAddress)
+	//{
+	//	return;
+	//}
 
 	int nX = 0;
 	int nY = 0;

@@ -67,9 +67,9 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel, out vec3 nodeCe
 
 void flagNode(in int address, in vec3 nodeCenterPos) {
 	uvec3 nodeCenterPosI = uvec3(nodeCenterPos * voxelGridResolution);
-	uint nodeNext = imageLoad(nodePool_next, address).x;
-	nodeNext = NODE_MASK_BRICK | nodeNext;
-	//uint nodeNext = NODE_MASK_BRICK | vec3ToUintXYZ10(nodeCenterPosI);
+	// uint nodeNext = imageLoad(nodePool_next, address).x;
+	// nodeNext = NODE_MASK_BRICK | nodeNext;
+	uint nodeNext = NODE_MASK_BRICK | vec3ToUintXYZ10(nodeCenterPosI);
 	imageStore(nodePool_next, address, uvec4(nodeNext));
 	//imageStore(nodePool_color, address, uvec4(vec3ToUintXYZ10(nodeCenterPosI)));
 	memoryBarrier();
@@ -87,7 +87,7 @@ void main() {
 	int nodeAddress = traverseOctree_simple(posTex, onLevel, nodeCenterPos);
 	flagNode(nodeAddress, nodeCenterPos);
 
-	if (level < numLevels)
+	if (level < numLevels-2)
 	{
 		for (int i = 0; i < 6; i++)
 		{
