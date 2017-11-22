@@ -216,7 +216,7 @@ void Graphics::initVoxelization()
 void Graphics::initSparseVoxelization() {
 
   // Initialize node pool
-	m_nodePoolDim = 64;
+	m_nodePoolDim = 128;
 	m_numLevels = (int)log2f(m_nodePoolDim);
 	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
@@ -1022,17 +1022,17 @@ void Graphics::borderTransfer(int level, std::shared_ptr<Texture3D> brickPoolTex
 		glDrawArraysIndirect(GL_POINTS, 0);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-		//glUniform1ui(glGetUniformLocation(material->program, "axis"), 1);
-		//m_nodePoolTextures[NODE_POOL_NEIGH_Y]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
-		//glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Y]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-		//glDrawArraysIndirect(GL_POINTS, 0);
-		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glUniform1ui(glGetUniformLocation(material->program, "axis"), 1);
+		m_nodePoolTextures[NODE_POOL_NEIGH_Y]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Y]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glDrawArraysIndirect(GL_POINTS, 0);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-		//glUniform1ui(glGetUniformLocation(material->program, "axis"), 2);
-		//m_nodePoolTextures[NODE_POOL_NEIGH_Z]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
-		//glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Z]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
-		//glDrawArraysIndirect(GL_POINTS, 0);
-		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		glUniform1ui(glGetUniformLocation(material->program, "axis"), 2);
+		m_nodePoolTextures[NODE_POOL_NEIGH_Z]->Activate(material->program, "nodePool_Neighbour", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEIGH_Z]->m_textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32UI);
+		glDrawArraysIndirect(GL_POINTS, 0);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	}
 }
 

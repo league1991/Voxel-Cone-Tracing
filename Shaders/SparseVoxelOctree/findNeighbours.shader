@@ -33,7 +33,12 @@ bool isEmpty(int nodeAddress)
 
 void main() {
 	int levelBeginAddress = int(imageLoad(levelAddressBuffer, int(level)).x);
+	int levelEndAddress = int(imageLoad(levelAddressBuffer, int(level+1)).x);
 	int nodeAddress = levelBeginAddress + gl_VertexID;
+	if (nodeAddress >= levelEndAddress)
+	{
+		return;
+	}
 
 	uint nodeNextU = imageLoad(nodePool_next, nodeAddress).x;
 
@@ -60,7 +65,7 @@ void main() {
 	//stepTex *= 0.99;
 
 	uint nodeLevel = 0;
-	int nodeAddress2 = traverseOctree_simple(posTex, nodeLevel);
+	int nodeAddress2 = traverseToLevel(posTex, nodeLevel, level+1);
 	//if (nodeAddress2 != nodeAddress)
 	//{
 	//	return;
@@ -76,42 +81,42 @@ void main() {
 	uint neighbourLevel = 0;
 
 	if (posTex.x + stepTex < 1) {
-		nX = traverseOctree_simple(posTex + vec3(stepTex, 0, 0), neighbourLevel);
+		nX = traverseToLevel(posTex + vec3(stepTex, 0, 0), neighbourLevel, level+1);
 		if (nodeLevel != neighbourLevel || isEmpty(nX)) {
 			nX = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.y + stepTex < 1) {
-		nY = traverseOctree_simple(posTex + vec3(0, stepTex, 0), neighbourLevel);
+		nY = traverseToLevel(posTex + vec3(0, stepTex, 0), neighbourLevel, level + 1);
 		if (nodeLevel != neighbourLevel || isEmpty(nY)) {
 			nY = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.z + stepTex < 1) {
-		nZ = traverseOctree_simple(posTex + vec3(0, 0, stepTex), neighbourLevel);
+		nZ = traverseToLevel(posTex + vec3(0, 0, stepTex), neighbourLevel, level + 1);
 		if (nodeLevel != neighbourLevel || isEmpty(nZ)) {
 			nZ = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.x - stepTex > 0) {
-		nX_neg = traverseOctree_simple(posTex - vec3(stepTex, 0, 0), neighbourLevel);
+		nX_neg = traverseToLevel(posTex - vec3(stepTex, 0, 0), neighbourLevel, level + 1);
 		if (nodeLevel != neighbourLevel || isEmpty(nX_neg)) {
 			nX_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.y - stepTex > 0) {
-		nY_neg = traverseOctree_simple(posTex - vec3(0, stepTex, 0), neighbourLevel);
+		nY_neg = traverseToLevel(posTex - vec3(0, stepTex, 0), neighbourLevel, level + 1);
 		if (nodeLevel != neighbourLevel || isEmpty(nY_neg)) {
 			nY_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}
 	}
 
 	if (posTex.z - stepTex > 0) {
-		nZ_neg = traverseOctree_simple(posTex - vec3(0, 0, stepTex), neighbourLevel);
+		nZ_neg = traverseToLevel(posTex - vec3(0, 0, stepTex), neighbourLevel, level + 1);
 		if (nodeLevel != neighbourLevel || isEmpty(nZ_neg)) {
 			nZ_neg = 0; // invalidate neighbour-pointer if they are not on the same level
 		}

@@ -94,7 +94,7 @@ int traverseToLevel(in vec3 posTex, out uint foundOnLevel, in uint maxLevel) {
 	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
 		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
-		if (childStartAddress == 0U) {
+		if ((nodeNext & NODE_MASK_BRICK) == 0U || foundOnLevel == maxLevel - 1) {
 			break;
 		}
 
