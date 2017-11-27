@@ -40,15 +40,14 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel, out vec3 nodeCe
 	foundOnLevel = 0;
 	float sideLength = 0.5;
 
-	for (uint iLevel = 0; iLevel < numLevels; ++iLevel) {
+	for (uint iLevel = 0; iLevel < level; ++iLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
 
 		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
-		if (childStartAddress == 0U) {
+		if ((nodeNext & NODE_MASK_BRICK) == 0U) {
 			foundOnLevel = iLevel;
 			break;
 		}
-
 		uvec3 offVec = uvec3(2.0 * posTex);
 		uint off = offVec.x + 2U * offVec.y + 4U * offVec.z;
 
@@ -99,11 +98,12 @@ void main() {
 			for (int y = -1; y <= 1; y++) {
 				for (int z = -1; z <= 1; z++) {
 					vec3 offset = vec3(float(x), float(y), float(z));
-					nodeAddress = traverseOctree_simple(
-						posTex + offset * nodeOffset,
-						onLevel, nodeCenterPos);
-
-					flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);
+					vec3 neighPos = posTex + offset * nodeOffset;
+					if (all(greaterThan(neighPos, vec3(0.0))) && all(lessThan(neighPos, vec3(1.0))))
+					{
+						nodeAddress = traverseOctree_simple(neighPos, onLevel, nodeCenterPos);
+						flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);
+					}
 				}
 			}
 		}

@@ -68,7 +68,7 @@ int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uin
 	foundOnLevel = 0;
 	float sideLength = 0.5;
 
-	for (foundOnLevel = 0; foundOnLevel <= maxLevel; ++foundOnLevel) {
+	for (foundOnLevel = 0; foundOnLevel < maxLevel; ++foundOnLevel) {
 		uint nodeNext = imageLoad(nodePool_next, nodeAddress).x;
 		uint childStartAddress = nodeNext & NODE_MASK_VALUE;
 		if (childStartAddress == 0U) {
@@ -202,7 +202,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = 0.0;// 0.02;// 0.1953125;
 
 	// Trace.
-	return getSVOValue(from + dist * direction, brickPool_irradiance, uint(4)).xyz;
+	return getSVOValue(from + dist * direction, brickPool_irradiance, uint(2)).xyz;
 	while(dist < 5 && acc.a < 1){
 		vec3 c = from + dist * direction;
 		//c = scaleAndBias(from + dist * direction);
