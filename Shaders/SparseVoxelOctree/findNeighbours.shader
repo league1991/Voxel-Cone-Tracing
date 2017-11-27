@@ -58,8 +58,8 @@ void main() {
 	//	return;
 	//}
 	vec3 posTex = vec3(uintXYZ10ToVec3(nodeNextU & NODE_MASK_VALUE)) / float(voxelGridResolution);
-	// then clear tag bit
-	imageStore(nodePool_next, nodeAddress, uvec4(nodeNextU & NODE_MASK_BRICK));
+	// then set node_next to 0
+	imageStore(nodePool_next, nodeAddress, uvec4(NODE_MASK_BRICK));
 
 	float stepTex = 1.0 / float(pow2[level]);
 	//stepTex *= 0.99;
