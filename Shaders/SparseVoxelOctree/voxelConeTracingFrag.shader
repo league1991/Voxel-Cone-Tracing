@@ -95,7 +95,7 @@ vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 
 	if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
 		posTex.x > 1 || posTex.y > 1 || posTex.z > 1) {
-		return vec4(0,0,0,1);
+		return vec4(0,0,0,0);
 	}
 	uint onLevel = 0;
 	int nodeAddress = traverseToLevelAndGetOffset(posTex, onLevel, maxLevel);
@@ -192,26 +192,33 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	direction = normalize(direction);
 	
-	const float CONE_SPREAD = 0.1;
+	const float CONE_SPREAD = 0.75;
 
-	vec4 acc = vec4(0.0f);
+	vec4 acc = vec4(0,0,0,1);
 
 	// Controls bleeding from close surfaces.
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
-	float dist = 0.0;// 0.02;// 0.1953125;
+	float voxelRadius = length(voxelSize);
+	float dist = voxelRadius;// 0.02;// 0.1953125;
 
 	// Trace.
-	while(dist < 5 && acc.a < 1){
+	float nSubStep = 10.0;
+	while(dist < 5 && acc.a > 0.01){
 		vec3 c = from + dist * direction;
-		//c = scaleAndBias(from + dist * direction);
-		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
-		float level = max(float(numLevels-1) - log2(l), 0.0f);
-		float ll = (level + 1) * (level + 1);
-		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
-		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-		acc += voxel *pow(1 - voxel.a, 2);
-		dist += VOXEL_SIZE * 2 *ll * 0.1;
+		float radius = dist * CONE_SPREAD;
+		float levelF = float(numLevels) - 1 - log2(radius / voxelRadius);
+		levelF = clamp(levelF, 0.0, float(numLevels) - 1);
+		float lowerLevel = floor(levelF);
+		float upperLevel = ceil(levelF);
+		float weight = levelF - lowerLevel;
+
+		vec4 lowerVoxel = getSVOValue(c, brickPool_irradiance, uint(lowerLevel));
+		vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
+		vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
+		acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
+		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
+		dist += 2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep;
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
 	return acc.xyz;
@@ -263,7 +270,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * 0.05;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * length(voxelSize) * 2.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
@@ -277,7 +284,7 @@ vec3 indirectDiffuseLight(){
 
 	// Trace front cone
 	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
-	return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
+	//return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
 
 	// Trace 4 side cones.
 	const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
