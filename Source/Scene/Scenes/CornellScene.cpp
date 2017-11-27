@@ -73,14 +73,14 @@ void CornellScene::update() {
 	glm::vec3 r = glm::vec3(sinf(float(Time::time * 0.97)), sinf(float(Time::time * 0.45)), sinf(float(Time::time * 0.32)));
 
 	// Lighting.
-	renderers[lightSphereIndex]->transform.position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;
-	renderers[lightSphereIndex]->transform.position.x *= 4.5f;
-	renderers[lightSphereIndex]->transform.position.z *= 4.5f;
-	renderers[lightSphereIndex]->transform.rotation = r;
-	renderers[lightSphereIndex]->transform.scale = glm::vec3(0.049f);
+	renderers[lightSphereIndex]->transform.position = glm::vec3(0, 0, sinf(float(Time::time * 0.1)));
+	//renderers[lightSphereIndex]->transform.rotation = r;
+	renderers[lightSphereIndex]->transform.scale = glm::vec3(0.1,0.1,0.1);
 	renderers[lightSphereIndex]->transform.updateTransformMatrix();
 
-	pointLights[0].position = renderers[lightSphereIndex]->transform.position;
+	pointLights[0].position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;// renderers[lightSphereIndex]->transform.position;
+	pointLights[0].position.x *= 4.5f;
+	pointLights[0].position.z = pointLights[0].position.z * 4.5f;
 	renderers[lightSphereIndex]->materialSetting->diffuseColor = pointLights[0].color;
 }
 

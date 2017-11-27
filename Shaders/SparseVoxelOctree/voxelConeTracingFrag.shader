@@ -54,8 +54,8 @@ uniform sampler3D brickPool_irradiance;
 uniform sampler3D brickPool_normal;
 
 uniform mat4 voxelGridTransformI;
+uniform vec3 voxelSize;
 uniform uint numLevels;
-uniform ivec3 brickPool_Dim;
 
 #include "SparseVoxelOctree/_utilityFunctions.shader"
 #include "SparseVoxelOctree/_traverseUtil.shader"
@@ -192,7 +192,7 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	direction = normalize(direction);
 	
-	const float CONE_SPREAD = 0.1;// 0.325;
+	const float CONE_SPREAD = 0.1;
 
 	vec4 acc = vec4(0.0f);
 
@@ -202,20 +202,19 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = 0.0;// 0.02;// 0.1953125;
 
 	// Trace.
-	return getSVOValue(from + dist * direction, brickPool_irradiance, uint(2)).xyz;
 	while(dist < 5 && acc.a < 1){
 		vec3 c = from + dist * direction;
 		//c = scaleAndBias(from + dist * direction);
 		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
-		float level = max(float(numLevels) - log2(l), 0.0f);
+		float level = max(float(numLevels-1) - log2(l), 0.0f);
 		float ll = (level + 1) * (level + 1);
 		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
 		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-		acc += voxel *pow(1 - voxel.a, 2) * 0.4;
-		dist += VOXEL_SIZE * 2 *ll * 1.0;
+		acc += voxel *pow(1 - voxel.a, 2);
+		dist += VOXEL_SIZE * 2 *ll * 0.1;
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
-	return acc.xyz * 10.0;
+	return acc.xyz;
 	//return pow(acc.rgb * 2.0, vec3(1.5));
 }
 
@@ -264,7 +263,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * 0.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * 0.05;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.

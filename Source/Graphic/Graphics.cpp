@@ -143,6 +143,10 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 	m_brickPoolTextures[BRICK_POOL_NORMAL]->Activate(material->program, "brickPool_normal", textureUnitIdx);
 
 	// Upload uniforms.
+	glm::vec3 boxMin, boxMax;
+	renderingScene.getBoundingBox(boxMin, boxMax);
+	glm::vec3 voxelSize = (boxMax - boxMin) / float(m_nodePoolDim); 
+	glUniform3fv(glGetUniformLocation(material->program, "voxelSize"), 1, glm::value_ptr(voxelSize));
 	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransformI"), 1, GL_FALSE, glm::value_ptr(voxelGridTransformI));
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
