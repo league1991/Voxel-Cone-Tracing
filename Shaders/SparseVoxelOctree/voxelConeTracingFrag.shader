@@ -203,7 +203,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = voxelRadius;// 0.02;// 0.1953125;
 
 	// Trace.
-	float nSubStep = 10.0;
+	float nSubStep = 5.0;
 	while(dist < 5 && acc.a > 0.01){
 		vec3 c = from + dist * direction;
 		float radius = dist * CONE_SPREAD;
@@ -216,7 +216,13 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		vec4 lowerVoxel = getSVOValue(c, brickPool_irradiance, uint(lowerLevel));
 		vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
 		vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
-		acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
+
+		vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel));
+		vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel));
+		vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
+
+		float normalWeight =  clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1, 0.0, 1.0);
+		acc.xyz += normalWeight * avgVoxel.xyz * acc.a / nSubStep;
 		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
 		dist += 2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep;
 	}

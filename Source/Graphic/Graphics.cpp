@@ -220,7 +220,7 @@ void Graphics::initVoxelization()
 void Graphics::initSparseVoxelization() {
 
   // Initialize node pool
-	m_nodePoolDim = 128;
+	m_nodePoolDim = 64;
 	m_numLevels = (int)log2f(m_nodePoolDim);
 	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
