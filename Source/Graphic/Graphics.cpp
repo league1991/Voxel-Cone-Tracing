@@ -216,7 +216,7 @@ void Graphics::initVoxelization()
 void Graphics::initSparseVoxelization() {
 
   // Initialize node pool
-	m_nodePoolDim = 128;
+	m_nodePoolDim = 64;
 	m_numLevels = (int)log2f(m_nodePoolDim);
 	m_ithVisualizeLevel = m_numLevels - 1;
   int levelVoxels = m_nodePoolDim * m_nodePoolDim * m_nodePoolDim;
@@ -424,12 +424,12 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   modifyIndirectBuffer(m_fragmentListCounter, m_fragmentListCmdBuf);
 
   flagNode(renderingScene, 0);
-  for (int level = 0; level < m_numLevels-1; level++)
+  for (int level = 1; level < m_numLevels; level++)
   {
 	  // allocate nodes for level+1
-	  allocateNode(renderingScene, level);
-	  flagNode(renderingScene, level+1);
-	  findNeighbours(renderingScene, level+1);
+	  allocateNode(renderingScene, level-1);
+	  flagNode(renderingScene, level);
+	  findNeighbours(renderingScene, level);
   }
 
   //flagBrick();

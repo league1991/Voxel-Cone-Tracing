@@ -65,11 +65,11 @@ int traverseOctree_simple(in vec3 posTex, out uint foundOnLevel, out vec3 nodeCe
 	return nodeAddress;
 }
 
-void flagNode(in int address, in vec3 nodeCenterPos) {
+void flagNode(in int address, in vec3 nodeCenterPos, in uint flag) {
 	uvec3 nodeCenterPosI = uvec3(nodeCenterPos * voxelGridResolution);
 	// uint nodeNext = imageLoad(nodePool_next, address).x;
 	// nodeNext = NODE_MASK_BRICK | nodeNext;
-	uint nodeNext = NODE_MASK_BRICK | vec3ToUintXYZ10(nodeCenterPosI);
+	uint nodeNext = flag | vec3ToUintXYZ10(nodeCenterPosI);
 	imageStore(nodePool_next, address, uvec4(nodeNext));
 	//imageStore(nodePool_color, address, uvec4(vec3ToUintXYZ10(nodeCenterPosI)));
 	memoryBarrier();
@@ -84,19 +84,37 @@ void main() {
 	uint onLevel = 0;
 	vec3 nodeCenterPos;
 	// find node without child and return its address
+	// NODE_MASK_TAG means "find neighbour"
+	// NODE_MASK_BRICK means "add bricks"
 	int nodeAddress = traverseOctree_simple(posTex, onLevel, nodeCenterPos);
-	flagNode(nodeAddress, nodeCenterPos);
+	flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);
 
-	if (level < numLevels-2)
+	if (level < numLevels-1)
 	{
-		for (int i = 0; i < 6; i++)
-		{
-			nodeAddress = traverseOctree_simple(
-				posTex + neighOffset[i] * nodeOffset,
-				onLevel, nodeCenterPos);
-
-			flagNode(nodeAddress, nodeCenterPos);
+		int flag = NODE_MASK_TAG;
+		if (level < numLevels - 2) {
+			flag |= NODE_MASK_BRICK;
 		}
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+				for (int z = -1; z <= 1; z++) {
+					vec3 offset = vec3(float(x), float(y), float(z));
+					nodeAddress = traverseOctree_simple(
+						posTex + offset * nodeOffset,
+						onLevel, nodeCenterPos);
+
+					flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);
+				}
+			}
+		}
+		//for (int i = 0; i < 6; i++)
+		//{
+		//	nodeAddress = traverseOctree_simple(
+		//		posTex + neighOffset[i] * nodeOffset,
+		//		onLevel, nodeCenterPos);
+
+		//	flagNode(nodeAddress, nodeCenterPos);
+		//}
 	}
 
 	//if (onLevel < numLevels - 1) {

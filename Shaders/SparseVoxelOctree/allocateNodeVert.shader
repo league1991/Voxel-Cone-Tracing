@@ -32,9 +32,10 @@ void main() {
 
 	if (isMarked(nodeNextU)) {
 		//alloc child and unflag
-		nodeNextU = NODE_MASK_VALUE & allocChildTile(curNodeAddress);
+		nodeNextU &= (~NODE_MASK_VALUE);
+		nodeNextU |= NODE_MASK_VALUE & allocChildTile(curNodeAddress);
 
 		// Store the unflagged nodeNextU
-		imageStore(nodePool_next, curNodeAddress, uvec4(nodeNextU | NODE_MASK_BRICK, 0, 0, 0));
+		imageStore(nodePool_next, curNodeAddress, uvec4(nodeNextU, 0, 0, 0));
 	}
 }

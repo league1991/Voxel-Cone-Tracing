@@ -21,7 +21,7 @@
 // Light (voxel) cone tracing settings.
 // --------------------------------------
 #define MIPMAP_HARDCAP 5.4f /* Too high mipmap levels => glitchiness, too low mipmap levels => sharpness. */
-#define VOXEL_SIZE (1/64.0) /* Size of a voxel. 128x128x128 => 1/128 = 0.0078125. */
+#define VOXEL_SIZE (1/128.0) /* Size of a voxel. 128x128x128 => 1/128 = 0.0078125. */
 #define SHADOWS 1 /* Shadow cone tracing. */
 #define DIFFUSE_INDIRECT_FACTOR 0.52f /* Just changes intensity of diffuse indirect lighting. */
 // --------------------------------------
@@ -199,22 +199,23 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Controls bleeding from close surfaces.
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
-	float dist = 0.02;// 0.1953125;
+	float dist = 0.0;// 0.02;// 0.1953125;
 
 	// Trace.
-	while(dist < 1 && acc.a < 1){
+	return getSVOValue(from + dist * direction, brickPool_irradiance, uint(2)).xyz;
+	while(dist < 5 && acc.a < 1){
 		vec3 c = from + dist * direction;
 		//c = scaleAndBias(from + dist * direction);
 		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
-		float level = log2(l);
+		float level = max(float(numLevels) - log2(l), 0.0f);
 		float ll = (level + 1) * (level + 1);
 		//vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
 		vec4 voxel = getSVOValue(c, brickPool_irradiance, uint(level));
-		acc += voxel *pow(1 - voxel.a, 2) * 0.04;
-		dist += VOXEL_SIZE * 2 *ll * 0.1;
+		acc += voxel *pow(1 - voxel.a, 2) * 0.4;
+		dist += VOXEL_SIZE * 2 *ll * 1.0;
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
-	return acc.xyz;
+	return acc.xyz * 10.0;
 	//return pow(acc.rgb * 2.0, vec3(1.5));
 }
 
@@ -263,7 +264,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * 0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * 0.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
@@ -277,6 +278,7 @@ vec3 indirectDiffuseLight(){
 
 	// Trace front cone
 	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
+	return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
 
 	// Trace 4 side cones.
 	const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
@@ -402,7 +404,7 @@ void main(){
 
 	// Direct light.
 	//if(settings.directLight)
-	//	color.rgb += directLight(viewDirection);
+	//color.rgb += directLight(viewDirection);
 
 //#if (GAMMA_CORRECTION == 1)
 //	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
