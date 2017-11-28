@@ -73,9 +73,10 @@ void CornellScene::update() {
 	glm::vec3 r = glm::vec3(sinf(float(Time::time * 0.97)), sinf(float(Time::time * 0.45)), sinf(float(Time::time * 0.32)));
 
 	// Lighting.
-	renderers[lightSphereIndex]->transform.position = glm::vec3(0, 0, sinf(float(Time::time * 0.1)));
+	float ballRadius = 0.1;
+	renderers[lightSphereIndex]->transform.position = glm::vec3(0, 0, sinf(float(Time::time * 0.3)));
 	//renderers[lightSphereIndex]->transform.rotation = r;
-	renderers[lightSphereIndex]->transform.scale = glm::vec3(0.1,0.1,0.1);
+	renderers[lightSphereIndex]->transform.scale = glm::vec3(ballRadius, ballRadius,0.1);
 	renderers[lightSphereIndex]->transform.updateTransformMatrix();
 
 	pointLights[0].position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;// renderers[lightSphereIndex]->transform.position;

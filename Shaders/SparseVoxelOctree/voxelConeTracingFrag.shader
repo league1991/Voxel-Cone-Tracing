@@ -93,12 +93,16 @@ int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uin
 vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 	vec3 posTex = (voxelGridTransformI * vec4(posWorld, 1.0)).xyz;
 
-	if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
-		posTex.x > 1 || posTex.y > 1 || posTex.z > 1) {
-		return vec4(0,0,0,0);
-	}
+	//if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
+	//	posTex.x > 1 || posTex.y > 1 || posTex.z > 1) {
+	//	return vec4(0,0,0,0);
+	//}
+	posTex = clamp(posTex, vec3(0.001), vec3(0.999));
 	uint onLevel = 0;
 	int nodeAddress = traverseToLevelAndGetOffset(posTex, onLevel, maxLevel);
+	if (onLevel != maxLevel) {
+		return vec4(0, 0, 0, 0);
+	}
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
 	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
 	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
@@ -203,7 +207,8 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	float dist = voxelRadius;// 0.02;// 0.1953125;
 
 	// Trace.
-	float nSubStep = 5.0;
+	//return getSVOValue(from + direction * 0.1, brickPool_irradiance, uint(5)).xyz;
+	float nSubStep = 2.0;
 	while(dist < 5 && acc.a > 0.01){
 		vec3 c = from + dist * direction;
 		float radius = dist * CONE_SPREAD;
@@ -263,7 +268,7 @@ vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
 // The current implementation uses 9 cones. I think 5 cones should be enough, but it might generate
 // more aliasing and bad blur.
 vec3 indirectDiffuseLight(){
-	const float ANGLE_MIX = 0.5f; // Angle mix (1.0f => orthogonal direction, 0.0f => direction of normal).
+	const float ANGLE_MIX = 0.5; // Angle mix (1.0f => orthogonal direction, 0.0f => direction of normal).
 
 	const float w[3] = {1.0, 1.0, 1.0}; // Cone weights.
 
@@ -276,7 +281,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * length(voxelSize) * 2.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * length(voxelSize) * 1.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
@@ -288,15 +293,17 @@ vec3 indirectDiffuseLight(){
 	//const float CONE_OFFSET = -0.01;
 	const float CONE_OFFSET = -0.0;
 
-	// Trace front cone
-	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
-	//return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
-
 	// Trace 4 side cones.
 	const vec3 s1 = mix(normal, ortho, ANGLE_MIX);
 	const vec3 s2 = mix(normal, -ortho, ANGLE_MIX);
 	const vec3 s3 = mix(normal, ortho2, ANGLE_MIX);
 	const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
+
+	// Trace front cone
+	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
+	//acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1) * 5.0;
+	//return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
+
 
 	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
 	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
