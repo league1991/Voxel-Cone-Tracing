@@ -61,28 +61,25 @@ uint imageAtomicRGBA8Avg(layout(r32ui) volatile uimage3D img,
 	vec4 currVal;
 	uint numIterations = 0;
 	// Loop as long as destination value gets changed by other threads
-	while ((currValU = imageAtomicCompSwap(img, coords, lastValU, newValU))
-		!= lastValU
+	while ((currValU = imageAtomicCompSwap(img, coords, lastValU, newValU)) != lastValU
 		&& numIterations < MAX_NUM_AVG_ITERATIONS) {
 		lastValU = currValU;
 
+		// Compute average value newValU
 		currVal = convRGBA8ToVec4(currValU);
 		currVal.xyz *= currVal.a; // Denormalize
-
 		currVal += newVal; // Add new value
 		currVal.xyz /= currVal.a; // Renormalize
-
 		newValU = convVec4ToRGBA8(currVal);
 
 		++numIterations;
 	}
 
 	// currVal now contains the calculated color: now convert it to a proper alpha-premultiplied version
-	newVal = convRGBA8ToVec4(newValU);
-	newVal.a = 255.0;
-	newValU = convVec4ToRGBA8(newVal);
-
-	imageStore(img, coords, uvec4(newValU));
+	//newVal = convRGBA8ToVec4(newValU);
+	//newVal.a = 255.0;
+	//newValU = convVec4ToRGBA8(newVal);
+	//imageStore(img, coords, uvec4(newValU));
 
 	return newValU;
 }
