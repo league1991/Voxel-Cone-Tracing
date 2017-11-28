@@ -703,14 +703,20 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 			glEnable(GL_DEPTH_TEST);
 			glDisable(GL_BLEND);
 		}
+		else if (m_voxelBlendMode == 1)
+		{
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		}
 		else
 		{
 			glDisable(GL_DEPTH_TEST);
 			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 		glDisable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glBlendColor(1.0, 1.0, 1.0, 2.0);
 	}
 

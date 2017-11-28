@@ -88,12 +88,13 @@ void main() {
 	int nodeAddress = traverseOctree_simple(posTex, onLevel, nodeCenterPos);
 	flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);
 
-	if (level < numLevels-1)
+	//if (level < numLevels-1)
+	if (level < numLevels)
 	{
-		int flag = NODE_MASK_TAG;
-		if (level < numLevels - 2) {
-			flag |= NODE_MASK_BRICK;
-		}
+		int flag = NODE_MASK_TAG | NODE_MASK_BRICK;
+		//if (level < numLevels - 2) {
+		//	flag |= NODE_MASK_BRICK;
+		//}
 		for (int x = -1; x <= 1; x++) {
 			for (int y = -1; y <= 1; y++) {
 				for (int z = -1; z <= 1; z++) {

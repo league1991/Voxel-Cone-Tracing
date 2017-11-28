@@ -121,7 +121,7 @@ void Application::init() {
 	for (auto * meshRenderer : scene->renderers) if (meshRenderer->tweakable) tweakableRenderers.push_back(meshRenderer);
 	TwAddVarRW(mainTweakBar, "Application state", TW_TYPE_INT32, &state, "label='State' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Rendering mode", renderingMode, &currentRenderingMode, "enum='0 {Voxel Visualization}, 1 {Voxel Cone Tracing}' group=Rendering");
-	TwAddVarRW(mainTweakBar, "Voxel Blend Mode", voxelBlendMode, &graphics.m_voxelBlendMode, "enum='0 {No Blend}, 1 {Alpha Add}' group=Rendering");
+	TwAddVarRW(mainTweakBar, "Voxel Blend Mode", voxelBlendMode, &graphics.m_voxelBlendMode, "enum='0 {No Blend}, 1 {Alpha Add}, 2 {Alpha Blend}' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Brick Texture Type", brickTexType, &graphics.m_brickTexType, "enum='0 {Color}, 1 {Irradiance}' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Visualization Level", TW_TYPE_INT32, &graphics.m_ithVisualizeLevel, "label='Visualization Level' group=Rendering");
 	auto temp = "mainsep1";

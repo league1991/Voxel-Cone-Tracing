@@ -93,10 +93,10 @@ int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uin
 vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 	vec3 posTex = (voxelGridTransformI * vec4(posWorld, 1.0)).xyz;
 
-	//if (posTex.x < 0 || posTex.y < 0 || posTex.z < 0 ||
-	//	posTex.x > 1 || posTex.y > 1 || posTex.z > 1) {
-	//	return vec4(0,0,0,0);
-	//}
+	vec3 maxDistV = max(max(posTex - vec3(1.0), vec3(0.0) - posTex), vec3(0.0));
+	float maxDist = maxDistV.x + maxDistV.y + maxDistV.z;
+	float weight = max(0.0, 1.0 - maxDist / 0.5);
+
 	posTex = clamp(posTex, vec3(0.001), vec3(0.999));
 	uint onLevel = 0;
 	int nodeAddress = traverseToLevelAndGetOffset(posTex, onLevel, maxLevel);
@@ -106,8 +106,7 @@ vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
 	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
 	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
-	//brickVal.xyz += posTex * 0.2;
-	return brickVal;
+	return brickVal * weight;
 }
 
 // Basic point light.
@@ -196,7 +195,7 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	direction = normalize(direction);
 	
-	const float CONE_SPREAD = 0.75;
+	const float CONE_SPREAD = 0.5;
 
 	vec4 acc = vec4(0,0,0,1);
 
@@ -209,7 +208,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Trace.
 	//return getSVOValue(from + direction * 0.1, brickPool_irradiance, uint(5)).xyz;
 	float nSubStep = 2.0;
-	while(dist < 5 && acc.a > 0.01){
+	while(dist < 5 && acc.a > 0.05){
 		vec3 c = from + dist * direction;
 		float radius = dist * CONE_SPREAD;
 		float levelF = float(numLevels) - 1 - log2(radius / voxelRadius);
