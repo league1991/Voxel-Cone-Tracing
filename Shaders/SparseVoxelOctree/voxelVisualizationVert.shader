@@ -27,7 +27,7 @@ out VertexData{
 	ivec3 brickAddress;
 } Out;
 
-int traverseToLevel(in vec3 posTex, out uint foundOnLevel) {
+int traverseToLevel(inout vec3 posTex, out uint foundOnLevel) {
 	vec3 nodePosTex = vec3(0.0);
 	vec3 nodePosMaxTex = vec3(1.0);
 	int nodeAddress = 0;
@@ -52,6 +52,7 @@ int traverseToLevel(in vec3 posTex, out uint foundOnLevel) {
 		sideLength = sideLength / 2.0;
 		posTex = 2.0 * posTex - vec3(offVec);
 	} // level-for
+	posTex = 2.0 * posTex;
 
 	return nodeAddress;
 }
@@ -61,8 +62,8 @@ void main(){
 	uvec4 positionU = imageLoad(voxelFragList_position, int(gl_VertexID));
 	uvec3 baseVoxel = uintXYZ10ToVec3(positionU.x);
 	vec3 posTexSpace = vec3(baseVoxel) / float(voxelTexSize);
-	uvec3 posTexSpacei = uvec3(posTexSpace / levelTexSize[level]);
-	posTexSpace = vec3(posTexSpacei) * levelTexSize[level];
+	uvec3 posTexSpacei = uvec3(posTexSpace / levelTexSize[level+1]);
+	posTexSpace = vec3(posTexSpacei) * levelTexSize[level+1];
 
 	Out.posWorldSpace = voxelGridTransform * vec4(posTexSpace, 1.0);
 
@@ -71,10 +72,11 @@ void main(){
 	//Out.color = convRGBA8ToVec4(colorU.x) / 255.0;
 
 	uint onLevel = 0;
+	vec3 cellPos;
 	int nodeAddress = traverseToLevel(posTexSpace, onLevel);
 	//Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
 	if (onLevel == level) {
-		Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
+		Out.brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x) + ceil(posTexSpace));
 		//vec4 brickColor = imageLoad(brickPool_color, brickAddress);
 		//Out.color = brickColor;
 	}

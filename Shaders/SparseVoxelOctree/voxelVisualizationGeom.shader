@@ -51,11 +51,11 @@ void main(){
 	vec4 posWorldSpace = In[0].posWorldSpace;
 	ivec3 brickAddress = In[0].brickAddress;
 
-	float deltaTex = levelTexSizeG[levelG];
-	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.95;
+	float deltaTex = levelTexSizeG[levelG+1];
+	vec4 deltaWorld = voxelGridTransformG * vec4(deltaTex, deltaTex, deltaTex, 0.0) * 0.98;
 	bool validAddress = brickAddress.r >= 0;
 
-	float alphaFactor = 0.4 / pow(8.0, float(numLevels) - float(levelG));
+	float alphaFactor = 1.0 / pow(8.0, float(numLevels) - float(levelG));
 	Out.color = vec4(1, 0, 0, alphaFactor);
 
 	//vec4 clr = vec4(0, 0, 0, 0);
@@ -74,7 +74,7 @@ void main(){
 		vec4 pos0 = posWorldSpace + vec4(offset[outIdx.x], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos0;
 		if (validAddress) {
-			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.x] * 2.0));
+			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.x] * 1.0));
 			Out.color.a = Out.color.a * alphaFactor + 1.0/255.0;
 		}
 		EmitVertex();
@@ -82,7 +82,7 @@ void main(){
 		vec4 pos1 = posWorldSpace + vec4(offset[outIdx.y], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos1;
 		if (validAddress) {
-			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.y] * 2.0));
+			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.y] * 1.0));
 			Out.color.a = Out.color.a * alphaFactor + 1.0 / 255.0;
 		}
 		EmitVertex();
@@ -90,7 +90,7 @@ void main(){
 		vec4 pos2 = posWorldSpace + vec4(offset[outIdx.z], 0.0) * deltaWorld;
 		gl_Position = viewProjTransform * pos2;
 		if (validAddress){
-			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.z] * 2.0));
+			Out.color = imageLoad(brickPool_color, brickAddress + ivec3(offset[outIdx.z] * 1.0));
 			Out.color.a = Out.color.a * alphaFactor + 1.0 / 255.0;
 		}
 		EmitVertex();
