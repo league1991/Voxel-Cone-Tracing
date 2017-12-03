@@ -29,6 +29,8 @@ vec4 getColor(in ivec3 pos) {
   ivec3 childPos = ivec3(round(vec3(pos) / 4.0));
   int childIndex = childPos.x + 2 * childPos.y + 4 * childPos.z;
   ivec3 localPos = pos - 2 * childPos;
+  if ((NODE_MASK_VALUE & childNextU[childIndex]) == 0 && level != numLevels-2)
+	  return emptyColor;
 
   ivec3 childBrickAddress = ivec3(uintXYZ10ToVec3_(childColorU[childIndex]));
   return imageLoad(brickPool_value, childBrickAddress + localPos);

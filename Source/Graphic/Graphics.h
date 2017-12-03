@@ -45,6 +45,7 @@ public:
 	bool indirectDiffuseLight = true;
 	bool indirectSpecularLight = true;
 	bool directLight = true;
+	bool updateScene = true;
 	int m_ithVisualizeLevel = 0; // visualize brick pool for node in ith level 
 	int m_voxelBlendMode = 0;
 	int m_brickTexType = 0;
@@ -107,20 +108,20 @@ private:
   void writeLeafNode();
   void spreadLeafBrick(std::shared_ptr<Texture3D> brickPoolTexture);
   void borderTransfer(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
   // light update function
   void clearNodeMap();
   void shadowMap(Scene& renderingScene, const PointLight& light);
   void lightInjection(Scene& renderingScene, const PointLight& light);
   void spreadLeafBrickLight(std::shared_ptr<Texture3D> brickPoolTexture);
   void borderTransferLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
-  void mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
+  void mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
+  void mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
   // hierarchical cone tracing
   void renderSceneWithSVO(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight);
 

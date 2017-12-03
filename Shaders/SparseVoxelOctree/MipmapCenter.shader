@@ -33,6 +33,7 @@ uniform usampler2D nodeMap;
 uniform usamplerBuffer levelAddressBuffer;
 uniform uint mipmapMode;
 uniform uint numLevels;
+uniform vec4 emptyColor = vec4(0);
 
 layout(rgba8) uniform image3D brickPool_value;
 

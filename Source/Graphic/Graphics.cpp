@@ -450,7 +450,6 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
   borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_COLOR]);
   borderTransfer(m_numLevels - 1, m_brickPoolTextures[BRICK_POOL_NORMAL]);
 
-  int ithLevel = m_numLevels - 2;
   for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
 	  mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
 	  mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
@@ -459,6 +458,16 @@ void Graphics::sparseVoxelize(Scene & renderingScene, bool clearVoxelization)
 	  if (ithLevel > 0)
 	  {
 		  borderTransfer(ithLevel, m_brickPoolTextures[BRICK_POOL_COLOR]);
+	  }
+  }
+  for (int ithLevel = m_numLevels - 2; ithLevel >= 0; --ithLevel) {
+	  mipmapCenter(ithLevel, m_brickPoolTextures[BRICK_POOL_NORMAL], glm::vec4(0.5, 0.5, 0.5, 0.0));
+	  mipmapFaces(ithLevel, m_brickPoolTextures[BRICK_POOL_NORMAL], glm::vec4(0.5, 0.5, 0.5, 0.0));
+	  mipmapCorners(ithLevel, m_brickPoolTextures[BRICK_POOL_NORMAL], glm::vec4(0.5, 0.5, 0.5, 0.0));
+	  mipmapEdges(ithLevel, m_brickPoolTextures[BRICK_POOL_NORMAL], glm::vec4(0.5, 0.5, 0.5, 0.0));
+	  if (ithLevel > 0)
+	  {
+		  borderTransfer(ithLevel, m_brickPoolTextures[BRICK_POOL_NORMAL]);
 	  }
   }
 }
@@ -755,10 +764,15 @@ void Graphics::visualizeVoxel(Scene& renderingScene, unsigned int viewportWidth,
 		m_brickPoolTextures[BRICK_POOL_COLOR]->Activate(material->program, "brickPool_color", textureUnitIdx);
 		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_COLOR]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 	}
-	else
+	else if(m_brickTexType == 1)
 	{
 		m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->Activate(material->program, "brickPool_color", textureUnitIdx);
 		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_IRRADIANCE]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	}
+	else
+	{
+		m_brickPoolTextures[BRICK_POOL_NORMAL]->Activate(material->program, "brickPool_color", textureUnitIdx);
+		glBindImageTexture(textureUnitIdx, m_brickPoolTextures[BRICK_POOL_NORMAL]->textureID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 	}
 
 	// Render.
@@ -1046,7 +1060,7 @@ void Graphics::borderTransfer(int level, std::shared_ptr<Texture3D> brickPoolTex
 	}
 }
 
-void Graphics::mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapCenter");
 
 	glUseProgram(material->program);
@@ -1054,6 +1068,7 @@ void Graphics::mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTextu
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
@@ -1073,13 +1088,14 @@ void Graphics::mipmapCenter(int level, std::shared_ptr<Texture3D> brickPoolTextu
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapFaces");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
@@ -1099,13 +1115,14 @@ void Graphics::mipmapFaces(int level, std::shared_ptr<Texture3D> brickPoolTextur
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapCorners");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
@@ -1125,13 +1142,14 @@ void Graphics::mipmapCorners(int level, std::shared_ptr<Texture3D> brickPoolText
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapEdges");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_levelAddressBuffer->Activate(material->program, "levelAddressBuffer", textureUnitIdx);
@@ -1310,7 +1328,7 @@ void Graphics::borderTransferLight(int level, std::shared_ptr<Texture3D> brickPo
 	}
 }
 
-void Graphics::mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapCenterLight");
 
 	glUseProgram(material->program);
@@ -1319,6 +1337,7 @@ void Graphics::mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPool
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
@@ -1338,7 +1357,7 @@ void Graphics::mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPool
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapFacesLight");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1346,6 +1365,7 @@ void Graphics::mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolT
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
@@ -1365,7 +1385,7 @@ void Graphics::mipmapFacesLight(int level, std::shared_ptr<Texture3D> brickPoolT
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapCornersLight");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1373,6 +1393,7 @@ void Graphics::mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoo
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");
@@ -1392,7 +1413,7 @@ void Graphics::mipmapCornersLight(int level, std::shared_ptr<Texture3D> brickPoo
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture) {
+void Graphics::mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("mipmapEdgesLight");
 	glUseProgram(material->program);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1400,6 +1421,7 @@ void Graphics::mipmapEdgesLight(int level, std::shared_ptr<Texture3D> brickPoolT
 	glUniform1ui(glGetUniformLocation(material->program, "level"), level);
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
+	glUniform4f(glGetUniformLocation(material->program, "emptyColor"), emptyColor.r, emptyColor.g, emptyColor.b, emptyColor.a);
 
 	int textureUnitIdx = 0;
 	m_lightNodeMap->Activate(material->program, textureUnitIdx, "nodeMap");

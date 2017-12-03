@@ -122,11 +122,12 @@ void Application::init() {
 	TwAddVarRW(mainTweakBar, "Application state", TW_TYPE_INT32, &state, "label='State' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Rendering mode", renderingMode, &currentRenderingMode, "enum='0 {Voxel Visualization}, 1 {Voxel Cone Tracing}' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Voxel Blend Mode", voxelBlendMode, &graphics.m_voxelBlendMode, "enum='0 {No Blend}, 1 {Alpha Add}, 2 {Alpha Blend}' group=Rendering");
-	TwAddVarRW(mainTweakBar, "Brick Texture Type", brickTexType, &graphics.m_brickTexType, "enum='0 {Color}, 1 {Irradiance}' group=Rendering");
+	TwAddVarRW(mainTweakBar, "Brick Texture Type", brickTexType, &graphics.m_brickTexType, "enum='0 {Color}, 1 {Irradiance}, 2{Normal}' group=Rendering");
 	TwAddVarRW(mainTweakBar, "Visualization Level", TW_TYPE_INT32, &graphics.m_ithVisualizeLevel, "label='Visualization Level' group=Rendering");
 	auto temp = "mainsep1";
 	TwAddSeparator(mainTweakBar, temp, NULL);
 	TwAddVarRW(mainTweakBar, "Shadows", TW_TYPE_BOOL8, &graphics.shadows, "group=Settings");
+	TwAddVarRW(mainTweakBar, "Update Scene", TW_TYPE_BOOL8, &graphics.updateScene, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Direct light", TW_TYPE_BOOL8, &graphics.directLight, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Indirect diffuse light", TW_TYPE_BOOL8, &graphics.indirectDiffuseLight, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Indirect specular light", TW_TYPE_BOOL8, &graphics.indirectSpecularLight, "group=Settings");
@@ -289,7 +290,7 @@ void Application::run()
 			timestampCost = glfwGetTime();
 		}
 #endif
-		if (!paused) scene->update();
+		if (!paused && graphics.updateScene) scene->update();
 #if __LOG_INTERVAL > 0 
 		{
 			updateCost += glfwGetTime() - timestampCost;

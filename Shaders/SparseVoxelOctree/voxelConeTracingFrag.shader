@@ -90,23 +90,23 @@ int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uin
 	return nodeAddress;
 }
 
-vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel) {
+vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel, vec4 emptyVal = vec4(0)) {
 	vec3 posTex = (voxelGridTransformI * vec4(posWorld, 1.0)).xyz;
 
 	vec3 maxDistV = max(max(posTex - vec3(1.0), vec3(0.0) - posTex), vec3(0.0));
 	float maxDist = maxDistV.x + maxDistV.y + maxDistV.z;
 	float weight = max(0.0, 1.0 - maxDist / 0.5);
 
-	posTex = clamp(posTex, vec3(0.001), vec3(0.999));
+	posTex = clamp(posTex, vec3(0.0001), vec3(0.9999));
 	uint onLevel = 0;
 	int nodeAddress = traverseToLevelAndGetOffset(posTex, onLevel, maxLevel);
 	if (onLevel != maxLevel) {
-		return vec4(0, 0, 0, 0);
+		return emptyVal;
 	}
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
 	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
 	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
-	return brickVal * weight;
+	return brickVal;// *weight;
 }
 
 // Basic point light.
@@ -203,15 +203,16 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
 	float voxelRadius = length(voxelSize);
-	float dist = voxelRadius;// 0.02;// 0.1953125;
+	float dist = 0;// 0.02;// 0.1953125;
 
 	// Trace.
-	//return getSVOValue(from + direction * 0.1, brickPool_irradiance, uint(5)).xyz;
-	float nSubStep = 5.0;
-	while(dist < 5 && acc.a > 0.05){
+	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
+	float nSubStep = 10.0;
+	while(dist < 5 && acc.a > 0.05)
+	{
 		vec3 c = from + dist * direction;
 		float radius = dist * CONE_SPREAD;
-		float levelF = float(numLevels) - 1 - log2(radius / voxelRadius);
+		float levelF = float(numLevels) - 1 -log2(radius / voxelRadius);
 		levelF = clamp(levelF, 0.0, float(numLevels) - 1);
 		float lowerLevel = floor(levelF);
 		float upperLevel = ceil(levelF);
@@ -221,14 +222,14 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
 		vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
 
-		vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel));
-		vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel));
+		vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel),vec4(vec3(0.5),0));
+		vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
 		vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
 
-		float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1, 0.0, 1.0);
+		float normalWeight = clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
 		acc.xyz += normalWeight * avgVoxel.xyz * acc.a / nSubStep;
-		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
-		dist += 2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep;
+		acc.a *= pow(1.0 - avgVoxel.a * avgNormalVoxel.a, 1.0 / nSubStep);
+		dist += max(2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep, voxelRadius*0.5);
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
 	return acc.xyz;
@@ -280,7 +281,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * length(voxelSize) * 1.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * length(voxelSize) * 0.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
@@ -395,7 +396,8 @@ vec3 calculateDirectLight(const PointLight light, const vec3 viewDirection){
 vec3 directLight(vec3 viewDirection){
 	vec3 direct = vec3(0.0f);
 	const uint maxLights = min(numberOfLights, MAX_LIGHTS);
-	for(uint i = 0; i < maxLights; ++i) direct += calculateDirectLight(pointLights[i], viewDirection);
+	for(uint i = 0; i < maxLights; ++i)
+		direct += calculateDirectLight(pointLights[i], viewDirection);
 	direct *= DIRECT_LIGHT_INTENSITY;
 	return direct;
 }
