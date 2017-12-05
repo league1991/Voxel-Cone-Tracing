@@ -207,7 +207,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 
 	// Trace.
 	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
-	float nSubStep = 10.0;
+	float nSubStep = 5.0;
 	while(dist < 5 && acc.a > 0.05)
 	{
 		vec3 c = from + dist * direction;
@@ -226,7 +226,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
 		vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
 
-		float normalWeight = clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
+		float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
 		acc.xyz += normalWeight * avgVoxel.xyz * acc.a / nSubStep;
 		acc.a *= pow(1.0 - avgVoxel.a * avgNormalVoxel.a, 1.0 / nSubStep);
 		dist += max(2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep, voxelRadius*0.5);
@@ -267,7 +267,34 @@ vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
 // Calculates indirect diffuse light using voxel cone tracing.
 // The current implementation uses 9 cones. I think 5 cones should be enough, but it might generate
 // more aliasing and bad blur.
-vec3 indirectDiffuseLight(){
+vec3 indirectDiffuseLight() {
+	const vec3 directionCoef[6] = {
+		vec3(0, 0, 1),        vec3(0,0.87,0.5),
+		vec3(0.82,0.27,0.5),  vec3(0.51,-0.7,0.5),
+		vec3(-0.51,-0.7,0.5), vec3(-0.82,0.27,0.5),
+	};
+
+	const float weight[6] = {
+		0.25,0.15,0.15,0.15,0.15,0.15,
+	};
+
+	const vec3 xAxis = normalize(orthogonal(normal));
+	const vec3 yAxis = normalize(cross(xAxis, normal));
+	const vec3 zAxis = normal;
+
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1.7;
+	vec3 acc = vec3(0);
+
+	for (int i = 0; i < 6; i++)
+	{
+		vec3 coef = directionCoef[i];
+		vec3 direction = xAxis * coef.x + yAxis * coef.y + zAxis * coef.z;
+		acc += weight[i] * traceDiffuseVoxelCone(origin, direction);
+	}
+	return material.diffuseReflectivity * acc * material.diffuseColor;
+}
+
+vec3 indirectDiffuseLightOld(){
 	const float ANGLE_MIX = 0.5; // Angle mix (1.0f => orthogonal direction, 0.0f => direction of normal).
 
 	const float w[3] = {1.0, 1.0, 1.0}; // Cone weights.
@@ -281,7 +308,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * length(voxelSize) * 0.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * length(voxelSize) * 1.0;// (1 + 4 * ISQRT2) * VOXEL_SIZE;
 	const vec3 C_ORIGIN = worldPositionFrag +N_OFFSET;
 
 	// Accumulate indirect diffuse light.
@@ -423,8 +450,8 @@ void main(){
 	//	color.rgb = mix(color.rgb, indirectRefractiveLight(viewDirection), material.transparency);
 
 	// Direct light.
-	//if(settings.directLight)
-	//color.rgb += directLight(viewDirection);
+	if(settings.directLight)
+		color.rgb += directLight(viewDirection);
 
 //#if (GAMMA_CORRECTION == 1)
 //	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
