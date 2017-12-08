@@ -130,6 +130,8 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 	//voxelTexture->Activate(material->program, "texture3D", textureUnitIdx);
 	//glBindImageTexture(textureUnitIdx, voxelTexture->textureID, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8);
 	//textureUnitIdx++;
+	m_shadowMapBuffer->ActivateAsTexture(material->program, "smPosition", textureUnitIdx);
+	textureUnitIdx++;
 	m_nodePoolTextures[NODE_POOL_NEXT]->Activate(material->program, "nodePool_next", textureUnitIdx);
 	glBindImageTexture(textureUnitIdx, m_nodePoolTextures[NODE_POOL_NEXT]->m_textureID, 0, GL_TRUE, 0, GL_READ_ONLY, GL_R32UI);
 	textureUnitIdx++;
@@ -163,10 +165,17 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 void Graphics::uploadLighting(Scene & renderingScene, const GLuint program) const
 {
 	// Point lights.
-	for (unsigned int i = 0; i < renderingScene.pointLights.size(); ++i) renderingScene.pointLights[i].Upload(program, i);
+	for (unsigned int i = 0; i < renderingScene.pointLights.size(); ++i)
+		renderingScene.pointLights[i].Upload(program, i);
+
+	for (unsigned int i = 0; i < renderingScene.directionalLights.size(); i++)
+	{
+		renderingScene.directionalLights[i].Upload(program, i);
+	}
 
 	// Number of point lights.
 	glUniform1i(glGetUniformLocation(program, NUMBER_OF_LIGHTS_NAME), renderingScene.pointLights.size());
+	glUniform1i(glGetUniformLocation(program, NUMBER_OF_DIRECTIONAL_LIGHTS_NAME), renderingScene.directionalLights.size());
 }
 
 void Graphics::uploadRenderingSettings(const GLuint glProgram) const
@@ -478,9 +487,9 @@ void Graphics::lightUpdate(Scene & renderingScene, bool clearVoxelizationFirst)
 	clearBrickPool(renderingScene, false);
 	clearNodeMap();
 
-	for (unsigned int i = 0; i < renderingScene.pointLights.size(); ++i)
+	for (unsigned int i = 0; i < renderingScene.directionalLights.size(); ++i)
 	{
-		auto& light = renderingScene.pointLights[i];
+		auto& light = renderingScene.directionalLights[i];
 		shadowMap(renderingScene, light);
 		lightInjection(renderingScene, light);
 
@@ -1183,7 +1192,7 @@ void Graphics::clearNodeMap()
 	glDrawArraysIndirect(GL_POINTS, 0);
 }
 
-void Graphics::shadowMap(Scene & renderingScene, const PointLight& light) {
+void Graphics::shadowMap(Scene & renderingScene, const DirectionalLight& light) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("shadowMap");
 	glUseProgram(material->program);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMapBuffer->frameBuffer);
@@ -1196,16 +1205,15 @@ void Graphics::shadowMap(Scene & renderingScene, const PointLight& light) {
 	glDisable(GL_CULL_FACE);
 
 	// Set matrix
+	m_lightViewMat = light.getLightViewMatrix();
+	m_lightProjMat = light.getLightProjectionMatrix();
+
 	//m_lightPos = renderingScene.renderingCamera->position;// glm::vec3(0, 0.5, 1);
 	//m_lightDir = renderingScene.renderingCamera->forward();// glm::vec3(0, -1, -1);
 	//m_lightViewMat = renderingScene.renderingCamera->viewMatrix;// glm::lookAt(m_lightPos, m_lightPos + m_lightDir, glm::vec3(0, 1, 0));
 	//m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-1, 1, -1, 1, -1, 1);
 
-	auto lightPos = light.position;
-	m_lightDir = glm::vec3(0, -1, -0);
-	m_lightViewMat = glm::lookAt(lightPos, lightPos + m_lightDir, glm::vec3(0, 0, 1));
-	m_lightProjMat = renderingScene.renderingCamera->getProjectionMatrix(); //glm::ortho(-0.9, 0.9, -0.9, 0.9, 0.0, 2.0);
-
+	m_lightDir = light.m_direction;
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "V"), 1, GL_FALSE, glm::value_ptr(m_lightViewMat));
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "P"), 1, GL_FALSE, glm::value_ptr(m_lightProjMat));
 	//uploadCamera(*renderingScene.renderingCamera, material->program);
@@ -1214,7 +1222,7 @@ void Graphics::shadowMap(Scene & renderingScene, const PointLight& light) {
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
-void Graphics::lightInjection(Scene& renderingScene, const PointLight& light) {
+void Graphics::lightInjection(Scene& renderingScene, const DirectionalLight& light) {
 	const Material * material = MaterialStore::getInstance().findMaterialWithName("lightInjection");
 	glUseProgram(material->program);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -1225,10 +1233,11 @@ void Graphics::lightInjection(Scene& renderingScene, const PointLight& light) {
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapOffset[0]"), m_nodeMapOffsets.size(), glm::value_ptr(m_nodeMapOffsets[0]));
 	glUniform2iv(glGetUniformLocation(material->program, "nodeMapSize[0]"), m_nodeMapSizes.size(), glm::value_ptr(m_nodeMapSizes[0]));
 
-	glm::vec3 lightColor(1,1,1);
 	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
-	glUniform3f(glGetUniformLocation(material->program, "lightColor"), lightColor.r, lightColor.g, lightColor.b);
-	glUniform3f(glGetUniformLocation(material->program, "lightDir"), m_lightDir.r, m_lightDir.g, m_lightDir.b);
+	uploadLighting(renderingScene, material->program);
+	//glm::vec3 lightColor(1,1,1);
+	//glUniform3f(glGetUniformLocation(material->program, "lightColor"), lightColor.r, lightColor.g, lightColor.b);
+	//glUniform3f(glGetUniformLocation(material->program, "lightDir"), m_lightDir.r, m_lightDir.g, m_lightDir.b);
 
 	int textureUnitIdx = 0;
 	m_shadowMapBuffer->ActivateAsTexture(material->program, "smPosition", textureUnitIdx);

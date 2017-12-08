@@ -68,6 +68,7 @@ private:
 	const char * VIEW_MATRIX_NAME = "V";
 	const char * CAMERA_POSITION_NAME = "cameraPosition";
 	const char * NUMBER_OF_LIGHTS_NAME = "numberOfLights";
+	const char * NUMBER_OF_DIRECTIONAL_LIGHTS_NAME = "numberOfDirLights";
 	const char * SCREEN_SIZE_NAME = "screenSize";
 	const char * APP_STATE_NAME = "state";
 
@@ -114,8 +115,8 @@ private:
   void mipmapEdges(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));
   // light update function
   void clearNodeMap();
-  void shadowMap(Scene& renderingScene, const PointLight& light);
-  void lightInjection(Scene& renderingScene, const PointLight& light);
+  void shadowMap(Scene& renderingScene, const DirectionalLight& light);
+  void lightInjection(Scene& renderingScene, const DirectionalLight& light);
   void spreadLeafBrickLight(std::shared_ptr<Texture3D> brickPoolTexture);
   void borderTransferLight(int level, std::shared_ptr<Texture3D> brickPoolTexture);
   void mipmapCenterLight(int level, std::shared_ptr<Texture3D> brickPoolTexture, glm::vec4 emptyColor = glm::vec4(0));

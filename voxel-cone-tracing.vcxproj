@@ -182,6 +182,7 @@
     <ClInclude Include="Source\Graphic\FBO\FBO.h" />
     <ClInclude Include="Source\Graphic\Graphics.h" />
     <ClInclude Include="Source\Graphic\IndexBuffer.h" />
+    <ClInclude Include="Source\Graphic\Lighting\DirectionalLight.h" />
     <ClInclude Include="Source\Graphic\Lighting\PointLight.h" />
     <ClInclude Include="Source\Graphic\Material\Material.h" />
     <ClInclude Include="Source\Graphic\Material\MaterialSetting.h" />

@@ -39,8 +39,18 @@ layout(rgba8) uniform image3D brickPool_color;
 uniform mat4 voxelGridTransformI;
 uniform uint numLevels;
 
-uniform vec3 lightColor;
-uniform vec3 lightDir;
+//uniform vec3 lightColor;
+//uniform vec3 lightDir;
+struct DirectionalLight {
+	vec3 position;
+	vec3 direction;
+	vec3 up;
+	vec2 size;
+	vec3 color;
+};
+
+uniform DirectionalLight directionalLights[1];
+uniform int numberOfDirLights;
 
 uniform ivec2 nodeMapOffset[10];
 uniform ivec2 nodeMapSize[10];
@@ -97,7 +107,7 @@ void main() {
         //vec3 voxelNormal = normalize(imageLoad(brickPool_normal, injectionPos).xyz * 2.0 - 1.0);
         vec4 voxelColor = imageLoad(brickPool_color, injectionPos);
        
-		vec4 reflectedRadiance =  vec4(lightColor, 1) *voxelColor;
+		vec4 reflectedRadiance = vec4(directionalLights[0].color, 1) *voxelColor;
         //reflectedRadiance.xyz *= clamp(abs(dot(-lightDir, voxelNormal)) + 0.3, 0.0, 1.0);
 
         // Store irradiance into brickPool irradiance

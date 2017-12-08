@@ -60,10 +60,12 @@ void CornellScene::init(unsigned int viewportWidth, unsigned int viewportHeight)
 	// ----------
 	// Lighting.
 	// ----------
-	PointLight p;
-	pointLights.push_back(p);
-	pointLights[0].color = glm::vec3(1.4f, 0.9f, 0.35f);
-	pointLights[0].color = normalize(pointLights[0].color);
+	//PointLight p;
+	//pointLights.push_back(p);
+	//pointLights[0].color = glm::vec3(1.4f, 0.9f, 0.35f);
+	//pointLights[0].color = normalize(pointLights[0].color);
+	DirectionalLight d(glm::vec3(0,0.5,0), glm::vec3(0,-1,0), glm::vec3(1,0,0),1.5,1.5, glm::vec3(1,1,1));
+	directionalLights.push_back(d);
 }
 
 
@@ -79,10 +81,12 @@ void CornellScene::update() {
 	renderers[lightSphereIndex]->transform.scale = glm::vec3(ballRadius, ballRadius,0.1);
 	renderers[lightSphereIndex]->transform.updateTransformMatrix();
 
-	pointLights[0].position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;// renderers[lightSphereIndex]->transform.position;
-	pointLights[0].position.x *= 4.5f;
-	pointLights[0].position.z = pointLights[0].position.z * 4.5f;
-	renderers[lightSphereIndex]->materialSetting->diffuseColor = pointLights[0].color;
+	//pointLights[0].position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;// renderers[lightSphereIndex]->transform.position;
+	//pointLights[0].position.x *= 4.5f;
+	//pointLights[0].position.z = pointLights[0].position.z * 4.5f;
+	directionalLights[0].m_direction = glm::vec3(0.5*sinf(float(Time::time * 0.3)), -1, 0.5*cosf(float(Time::time * 0.3)));
+	glm::normalize(directionalLights[0].m_direction);
+	renderers[lightSphereIndex]->materialSetting->diffuseColor = directionalLights[0].m_color;
 }
 
 CornellScene::~CornellScene() {

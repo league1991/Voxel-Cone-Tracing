@@ -53,6 +53,8 @@ uniform sampler3D brickPool_color;
 uniform sampler3D brickPool_irradiance;
 uniform sampler3D brickPool_normal;
 
+uniform sampler2D smPosition;
+
 uniform mat4 voxelGridTransformI;
 uniform vec3 voxelSize;
 uniform uint numLevels;
@@ -60,6 +62,59 @@ uniform uint numLevels;
 #include "SparseVoxelOctree/_utilityFunctions.shader"
 #include "SparseVoxelOctree/_traverseUtil.shader"
 #include "SparseVoxelOctree/_octreeTraverse.shader"
+
+
+// Basic point light.
+struct PointLight {
+	vec3 position;
+	vec3 color;
+};
+struct DirectionalLight {
+	vec3 position;
+	vec3 direction;
+	vec3 up;
+	vec2 size;
+	vec3 color;
+};
+
+// Basic material.
+struct Material {
+	vec3 diffuseColor;
+	float diffuseReflectivity;
+	vec3 specularColor;
+	float specularDiffusion; // "Reflective and refractive" specular diffusion. 
+	float specularReflectivity;
+	float emissivity; // Emissive materials uses diffuse color as emissive color.
+	float refractiveIndex;
+	float transparency;
+};
+
+struct Settings {
+	bool indirectSpecularLight; // Whether indirect specular light should be rendered or not.
+	bool indirectDiffuseLight; // Whether indirect diffuse light should be rendered or not.
+	bool directLight; // Whether direct light should be rendered or not.
+	bool shadows; // Whether shadows should be rendered or not.
+};
+
+uniform Material material;
+uniform Settings settings;
+uniform PointLight pointLights[MAX_LIGHTS];
+uniform int numberOfLights; // Number of lights currently uploaded.
+
+uniform DirectionalLight directionalLights[1];
+uniform int numberOfDirLights;
+
+uniform vec3 cameraPosition; // World campera position.
+uniform int state; // Only used for testing / debugging.
+//uniform sampler3D texture3D; // Voxelization texture.
+
+in vec3 worldPositionFrag;
+in vec3 normalFrag;
+
+out vec4 color;
+
+vec3 normal = normalize(normalFrag); 
+float MAX_DISTANCE = distance(vec3(abs(worldPositionFrag)), vec3(-1));
 
 int traverseToLevelAndGetOffset(inout vec3 posTex, out uint foundOnLevel, in uint maxLevel) {
 	vec3 nodePosTex = vec3(0.0);
@@ -104,51 +159,10 @@ vec4 getSVOValue(vec3 posWorld, sampler3D brickPoolImg, uint maxLevel, vec4 empt
 		return emptyVal;
 	}
 	ivec3 brickAddress = ivec3(uintXYZ10ToVec3(imageLoad(nodePool_color, int(nodeAddress)).x));
-	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg,0));
-	vec4 brickVal = textureLod(brickPoolImg, brickAddressF,0);
+	vec3 brickAddressF = (vec3(brickAddress) + vec3(0.5) + posTex * vec3(2.0)) / vec3(textureSize(brickPoolImg, 0));
+	vec4 brickVal = textureLod(brickPoolImg, brickAddressF, 0);
 	return brickVal;// *weight;
 }
-
-// Basic point light.
-struct PointLight {
-	vec3 position;
-	vec3 color;
-};
-
-// Basic material.
-struct Material {
-	vec3 diffuseColor;
-	float diffuseReflectivity;
-	vec3 specularColor;
-	float specularDiffusion; // "Reflective and refractive" specular diffusion. 
-	float specularReflectivity;
-	float emissivity; // Emissive materials uses diffuse color as emissive color.
-	float refractiveIndex;
-	float transparency;
-};
-
-struct Settings {
-	bool indirectSpecularLight; // Whether indirect specular light should be rendered or not.
-	bool indirectDiffuseLight; // Whether indirect diffuse light should be rendered or not.
-	bool directLight; // Whether direct light should be rendered or not.
-	bool shadows; // Whether shadows should be rendered or not.
-};
-
-uniform Material material;
-uniform Settings settings;
-uniform PointLight pointLights[MAX_LIGHTS];
-uniform int numberOfLights; // Number of lights currently uploaded.
-uniform vec3 cameraPosition; // World campera position.
-uniform int state; // Only used for testing / debugging.
-uniform sampler3D texture3D; // Voxelization texture.
-
-in vec3 worldPositionFrag;
-in vec3 normalFrag;
-
-out vec4 color;
-
-vec3 normal = normalize(normalFrag); 
-float MAX_DISTANCE = distance(vec3(abs(worldPositionFrag)), vec3(-1));
 
 // Returns an attenuation factor given a distance.
 float attenuate(float dist){ dist *= DIST_FACTOR; return 1.0f / (CONSTANT + LINEAR * dist + QUADRATIC * dist * dist); }
@@ -168,28 +182,28 @@ bool isInsideCube(const vec3 p, float e) { return abs(p.x) < 1 + e && abs(p.y) <
 
 // Returns a soft shadow blend by using shadow cone tracing.
 // Uses 2 samples per step, so it's pretty expensive.
-float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
-	from += normal * 0.05f; // Removes artifacts but makes self shadowing for dense meshes meh.
-
-	float acc = 0;
-
-	float dist = 3 * VOXEL_SIZE;
-	// I'm using a pretty big margin here since I use an emissive light ball with a pretty big radius in my demo scenes.
-	const float STOP = targetDistance - 16 * VOXEL_SIZE;
-
-	while(dist < STOP && acc < 1){	
-		vec3 c = from + dist * direction;
-		if(!isInsideCube(c, 0)) break;
-		c = scaleAndBias(c);
-		float l = pow(dist, 2); // Experimenting with inverse square falloff for shadows.
-		float s1 = 0.062 * textureLod(texture3D, c, 1 + 0.75 * l).a;
-		float s2 = 0.135 * textureLod(texture3D, c, 4.5 * l).a;
-		float s = s1 + s2;
-		acc += (1 - acc) * s;
-		dist += 0.9 * VOXEL_SIZE * (1 + 0.05 * l);
-	}
-	return 1 - pow(smoothstep(0, 1, acc * 1.4), 1.0 / 1.4);
-}	
+//float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
+//	from += normal * 0.05f; // Removes artifacts but makes self shadowing for dense meshes meh.
+//
+//	float acc = 0;
+//
+//	float dist = 3 * VOXEL_SIZE;
+//	// I'm using a pretty big margin here since I use an emissive light ball with a pretty big radius in my demo scenes.
+//	const float STOP = targetDistance - 16 * VOXEL_SIZE;
+//
+//	while(dist < STOP && acc < 1){	
+//		vec3 c = from + dist * direction;
+//		if(!isInsideCube(c, 0)) break;
+//		c = scaleAndBias(c);
+//		float l = pow(dist, 2); // Experimenting with inverse square falloff for shadows.
+//		float s1 = 0.062 * textureLod(texture3D, c, 1 + 0.75 * l).a;
+//		float s2 = 0.135 * textureLod(texture3D, c, 4.5 * l).a;
+//		float s = s1 + s2;
+//		acc += (1 - acc) * s;
+//		dist += 0.9 * VOXEL_SIZE * (1 + 0.05 * l);
+//	}
+//	return 1 - pow(smoothstep(0, 1, acc * 1.4), 1.0 / 1.4);
+//}	
 
 // Traces a diffuse voxel cone.
 vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
@@ -237,32 +251,32 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 }
 
 // Traces a specular voxel cone.
-vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
-	direction = normalize(direction);
-
-	const float OFFSET = 8 * VOXEL_SIZE;
-	const float STEP = VOXEL_SIZE;
-
-	from += OFFSET * normal;
-	
-	vec4 acc = vec4(0.0f);
-	float dist = OFFSET;
-
-	// Trace.
-	while(dist < MAX_DISTANCE && acc.a < 1){ 
-		vec3 c = from + dist * direction;
-		if(!isInsideCube(c, 0)) break;
-		c = scaleAndBias(c); 
-		
-		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
-		vec4 voxel = textureLod(texture3D, c, min(level, MIPMAP_HARDCAP));
-		float f = 1 - acc.a;
-		acc.rgb += 0.25 * (1 + material.specularDiffusion) * voxel.rgb * voxel.a * f;
-		acc.a += 0.25 * voxel.a * f;
-		dist += STEP * (1.0f + 0.125f * level);
-	}
-	return 1.0 * pow(material.specularDiffusion + 1, 0.8) * acc.rgb;
-}
+//vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
+//	direction = normalize(direction);
+//
+//	const float OFFSET = 8 * VOXEL_SIZE;
+//	const float STEP = VOXEL_SIZE;
+//
+//	from += OFFSET * normal;
+//	
+//	vec4 acc = vec4(0.0f);
+//	float dist = OFFSET;
+//
+//	// Trace.
+//	while(dist < MAX_DISTANCE && acc.a < 1){ 
+//		vec3 c = from + dist * direction;
+//		if(!isInsideCube(c, 0)) break;
+//		c = scaleAndBias(c); 
+//		
+//		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
+//		vec4 voxel = textureLod(texture3D, c, min(level, MIPMAP_HARDCAP));
+//		float f = 1 - acc.a;
+//		acc.rgb += 0.25 * (1 + material.specularDiffusion) * voxel.rgb * voxel.a * f;
+//		acc.a += 0.25 * voxel.a * f;
+//		dist += STEP * (1.0f + 0.125f * level);
+//	}
+//	return 1.0 * pow(material.specularDiffusion + 1, 0.8) * acc.rgb;
+//}
 
 // Calculates indirect diffuse light using voxel cone tracing.
 // The current implementation uses 9 cones. I think 5 cones should be enough, but it might generate
@@ -400,8 +414,8 @@ vec3 calculateDirectLight(const PointLight light, const vec3 viewDirection){
 	// --------------------
 	float shadowBlend = 1;
 #if (SHADOWS == 1)
-	if(diffuseAngle * (1.0f - material.transparency) > 0 && settings.shadows)
-		shadowBlend = traceShadowCone(worldPositionFrag, lightDirection, distanceToLight);
+	if (diffuseAngle * (1.0f - material.transparency) > 0 && settings.shadows)
+		shadowBlend = 1;// traceShadowCone(worldPositionFrag, lightDirection, distanceToLight);
 #endif
 
 	// --------------------
@@ -419,12 +433,84 @@ vec3 calculateDirectLight(const PointLight light, const vec3 viewDirection){
 	return attenuate(distanceToLight) * total;
 };
 
+vec3 calculateDirectDirLight(const DirectionalLight light, const vec3 viewDirection) {
+	vec3 pointPosToLight = worldPositionFrag - light.position;
+	if (dot(pointPosToLight, light.direction) < 0)
+		return vec3(0);
+
+	vec3 xAxis = normalize(cross(light.direction, light.up));
+	vec3 yAxis = normalize(cross(xAxis, light.direction));
+	float xProj = dot(pointPosToLight, xAxis);
+	float yProj = dot(pointPosToLight, yAxis);
+	float zProj = dot(pointPosToLight, light.direction);
+	float halfWidth = light.size.x*0.5;
+	float halfHeight = light.size.y*0.5;
+	if (xProj < -halfWidth || xProj > halfWidth)
+		return vec3(0);
+	if (yProj < -halfHeight || yProj > halfHeight)
+		return vec3(0);
+
+	vec2 uv = vec2(xProj / halfWidth, yProj / halfHeight) * 0.5 + 0.5;
+	vec3 shadowPosWS =texture(smPosition, uv).xyz;
+	float shadowZ = dot(shadowPosWS - light.position, light.direction);
+	if (shadowZ > 0.0 && shadowZ < zProj - 0.05)
+		return vec3(0);
+
+	vec3 lightDirection = light.direction;
+	const float distanceToLight = zProj;
+	const float lightAngle = dot(normal, light.direction * -1.0);
+
+	// --------------------
+	// Diffuse lighting.
+	// --------------------
+	float diffuseAngle = max(lightAngle, 0.0f); // Lambertian.	
+
+												// --------------------
+												// Specular lighting.
+												// --------------------
+#if (SPECULAR_MODE == 0) /* Blinn-Phong. */
+	const vec3 halfwayVector = normalize(lightDirection + viewDirection);
+	float specularAngle = max(dot(normal, halfwayVector), 0.0f);
+#endif
+
+#if (SPECULAR_MODE == 1) /* Perfect reflection. */
+	const vec3 reflection = normalize(reflect(viewDirection, normal));
+	float specularAngle = max(0, dot(reflection, lightDirection));
+#endif
+
+	float refractiveAngle = 0;
+	if (material.transparency > 0.01) {
+		vec3 refraction = refract(viewDirection, normal, 1.0 / material.refractiveIndex);
+		refractiveAngle = max(0, material.transparency * dot(refraction, lightDirection));
+	}
+
+	// --------------------
+	// Shadows.
+	// --------------------
+	float shadowBlend = 1;
+
+	// --------------------
+	// Add it all together.
+	// --------------------
+	diffuseAngle = min(shadowBlend, diffuseAngle);
+	specularAngle = min(shadowBlend, max(specularAngle, refractiveAngle));
+	const float df = 1.0f / (1.0f + 0.25f * material.specularDiffusion); // Diffusion factor.
+	const float specular = SPECULAR_FACTOR * pow(specularAngle, df * SPECULAR_POWER);
+	const float diffuse = diffuseAngle * (1.0f - material.transparency);
+
+	const vec3 diff = material.diffuseReflectivity * material.diffuseColor * diffuse;
+	const vec3 spec = material.specularReflectivity * material.specularColor * specular;
+	const vec3 total = light.color * (diff + spec);
+	return attenuate(distanceToLight) * total;
+};
 // Sums up all direct light from point lights (both diffuse and specular).
 vec3 directLight(vec3 viewDirection){
 	vec3 direct = vec3(0.0f);
 	const uint maxLights = min(numberOfLights, MAX_LIGHTS);
 	for(uint i = 0; i < maxLights; ++i)
 		direct += calculateDirectLight(pointLights[i], viewDirection);
+	for (uint i = 0; i < numberOfDirLights; ++i)
+		direct += calculateDirectDirLight(directionalLights[i], viewDirection);
 	direct *= DIRECT_LIGHT_INTENSITY;
 	return direct;
 }

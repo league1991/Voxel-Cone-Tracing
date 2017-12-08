@@ -5,6 +5,7 @@
 #include <glm.hpp>
 
 #include "../Graphic/Lighting/PointLight.h"
+#include "../Graphic/Lighting/DirectionalLight.h"
 #include "../Graphic/Camera/Camera.h"
 
 class MeshRenderer;
@@ -18,6 +19,7 @@ public:
 
 	std::vector<MeshRenderer *> renderers;
 	std::vector<PointLight> pointLights;
+	std::vector<DirectionalLight> directionalLights;
 
 	/// <summary> Updates the scene. Is called pre-render. </summary>
 	virtual void update() = 0;
