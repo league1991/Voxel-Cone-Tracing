@@ -217,11 +217,11 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
 	float voxelRadius = length(voxelSize);
-	float dist = 0;// 0.02;// 0.1953125;
+	float dist = voxelRadius * 1.7;// 0.02;// 0.1953125;
 
 	// Trace.
 	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
-	float nSubStep = 5.0;
+	float nSubStep = 2.0;
 	while(dist < 5 && acc.a > 0.05)
 	{
 		vec3 c = from + dist * direction;
@@ -241,8 +241,8 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
 
 		float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
-		acc.xyz += normalWeight * avgVoxel.xyz * acc.a / nSubStep;
-		acc.a *= pow(1.0 - avgVoxel.a * avgNormalVoxel.a, 1.0 / nSubStep);
+		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
+		acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
 		dist += max(2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep, voxelRadius*0.5);
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
@@ -296,7 +296,7 @@ vec3 indirectDiffuseLight() {
 	const vec3 yAxis = normalize(cross(xAxis, normal));
 	const vec3 zAxis = normal;
 
-	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1.7;
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 0.0;
 	vec3 acc = vec3(0);
 
 	for (int i = 0; i < 6; i++)
@@ -305,7 +305,7 @@ vec3 indirectDiffuseLight() {
 		vec3 direction = xAxis * coef.x + yAxis * coef.y + zAxis * coef.z;
 		acc += weight[i] * traceDiffuseVoxelCone(origin, direction);
 	}
-	return material.diffuseReflectivity * acc * material.diffuseColor;
+	return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * material.diffuseColor;
 }
 
 vec3 indirectDiffuseLightOld(){
@@ -437,6 +437,8 @@ vec3 calculateDirectDirLight(const DirectionalLight light, const vec3 viewDirect
 	vec3 pointPosToLight = worldPositionFrag - light.position;
 	if (dot(pointPosToLight, light.direction) < 0)
 		return vec3(0);
+	if (dot(normal, light.direction * -1.0) < 0)
+		return vec3(0);
 
 	vec3 xAxis = normalize(cross(light.direction, light.up));
 	vec3 yAxis = normalize(cross(xAxis, light.direction));
@@ -520,8 +522,8 @@ void main(){
 	const vec3 viewDirection = normalize(worldPositionFrag - cameraPosition);
 
 	// Indirect diffuse light.
-	// if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
-	color.rgb += indirectDiffuseLight();
+	if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
+		color.rgb += indirectDiffuseLight();
 	//color += getSVOValue(worldPositionFrag, brickPool_irradiance);
 
 	//// Indirect specular light (glossy reflections).

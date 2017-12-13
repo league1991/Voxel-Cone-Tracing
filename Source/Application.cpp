@@ -132,13 +132,13 @@ void Application::init() {
 	TwAddVarRW(mainTweakBar, "Indirect diffuse light", TW_TYPE_BOOL8, &graphics.indirectDiffuseLight, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Indirect specular light", TW_TYPE_BOOL8, &graphics.indirectSpecularLight, "group=Settings");
 
-	temp = "mainsep2";
-	TwAddSeparator(mainTweakBar, temp, NULL);
-	TwAddVarRW(mainTweakBar, "Autogen voxelization", TW_TYPE_BOOL8, &graphics.automaticallyVoxelize, "group=Voxelization");
-	TwAddVarRW(mainTweakBar, "Queue voxelization gen", TW_TYPE_BOOL8, &graphics.voxelizationQueued, "group=Voxelization");
-	TwAddVarRW(mainTweakBar, "Voxelization sparsity", TW_TYPE_INT32, &graphics.voxelizationSparsity, "group=Voxelization");
-	TwAddVarRW(mainTweakBar, "Autogen mipmap", TW_TYPE_BOOL8, &graphics.automaticallyRegenerateMipmap, "group=Voxelization");
-	TwAddVarRW(mainTweakBar, "Queue mipmap gen", TW_TYPE_BOOL8, &graphics.regenerateMipmapQueued, "group=Voxelization");
+	//temp = "mainsep2";
+	//TwAddSeparator(mainTweakBar, temp, NULL);
+	//TwAddVarRW(mainTweakBar, "Autogen voxelization", TW_TYPE_BOOL8, &graphics.automaticallyVoxelize, "group=Voxelization");
+	//TwAddVarRW(mainTweakBar, "Queue voxelization gen", TW_TYPE_BOOL8, &graphics.voxelizationQueued, "group=Voxelization");
+	//TwAddVarRW(mainTweakBar, "Voxelization sparsity", TW_TYPE_INT32, &graphics.voxelizationSparsity, "group=Voxelization");
+	//TwAddVarRW(mainTweakBar, "Autogen mipmap", TW_TYPE_BOOL8, &graphics.automaticallyRegenerateMipmap, "group=Voxelization");
+	//TwAddVarRW(mainTweakBar, "Queue mipmap gen", TW_TYPE_BOOL8, &graphics.regenerateMipmapQueued, "group=Voxelization");
 
 	// Point lights.
 	TwStructMember pointMembers[] = {
@@ -154,6 +154,22 @@ void Application::init() {
 			std::string setting = "group='" + group + "'";
 			TwAddVarRW(mainTweakBar, "color", TW_TYPE_COLOR3F, &p.color, setting.c_str());
 			TwAddVarRW(mainTweakBar, "position", pointType, &p.position, setting.c_str());
+			pp++;
+		}
+	}
+	if (scene->directionalLights.size() > 0)
+	{
+		int pp = 0;
+		for (auto & p : scene->directionalLights) {
+			if (!p.tweakable) continue;
+			std::string group = "Directional Light " + std::to_string(pp);
+			std::string setting = "group='" + group + "'";
+			TwAddVarRW(mainTweakBar, "color", TW_TYPE_COLOR3F, &p.m_color, setting.c_str());
+			std::string valueParam = setting + " step = 0.01";
+			TwAddVarRW(mainTweakBar, "intensity", TW_TYPE_FLOAT, &p.m_intensity, valueParam.c_str());
+			TwAddVarRW(mainTweakBar, "position", pointType, &p.m_position, valueParam.c_str());
+			TwAddVarRW(mainTweakBar, "width", TW_TYPE_FLOAT, &p.m_width, valueParam.c_str());
+			TwAddVarRW(mainTweakBar, "height", TW_TYPE_FLOAT, &p.m_height, valueParam.c_str());
 			pp++;
 		}
 	}

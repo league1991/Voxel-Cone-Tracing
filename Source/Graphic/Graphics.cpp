@@ -39,12 +39,12 @@ void Graphics::init(unsigned int viewportWidth, unsigned int viewportHeight)
 void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsigned int viewportHeight, RenderingMode renderingMode)
 {
 	// Voxelize.
-	bool voxelizeNow = voxelizationQueued || (automaticallyVoxelize && voxelizationSparsity > 0 && ++ticksSinceLastVoxelization >= voxelizationSparsity);
-	if (voxelizeNow) {
-		voxelize(renderingScene, true);
-		ticksSinceLastVoxelization = 0;
-		voxelizationQueued = false;
-	}
+	//bool voxelizeNow = voxelizationQueued || (automaticallyVoxelize && voxelizationSparsity > 0 && ++ticksSinceLastVoxelization >= voxelizationSparsity);
+	//if (voxelizeNow) {
+	//	voxelize(renderingScene, true);
+	//	ticksSinceLastVoxelization = 0;
+	//	voxelizationQueued = false;
+	//}
 	sparseVoxelize(renderingScene, true);
 	lightUpdate(renderingScene, true);
 
