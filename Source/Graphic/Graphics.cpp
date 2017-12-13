@@ -151,7 +151,9 @@ void Graphics::renderSceneWithSVO(Scene & renderingScene, unsigned int viewportW
 	glUniform3fv(glGetUniformLocation(material->program, "voxelSize"), 1, glm::value_ptr(voxelSize));
 	glm::mat4 voxelGridTransformI = getVoxelTransformInverse(renderingScene);
 	glUniformMatrix4fv(glGetUniformLocation(material->program, "voxelGridTransformI"), 1, GL_FALSE, glm::value_ptr(voxelGridTransformI));
-	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels);
+	glUniform1ui(glGetUniformLocation(material->program, "numLevels"), m_numLevels); 
+	glUniform1f(glGetUniformLocation(material->program, "directLightMultiplier"), directLightMultiplier);
+	glUniform1f(glGetUniformLocation(material->program, "indirectLightMultiplier"), indirectLightMultiplier);
 
 	uploadCamera(camera, program);
 	uploadGlobalConstants(program, viewportWidth, viewportHeight);

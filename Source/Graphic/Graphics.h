@@ -46,6 +46,8 @@ public:
 	bool indirectSpecularLight = true;
 	bool directLight = true;
 	bool updateScene = true;
+	float directLightMultiplier = 1.0;
+	float indirectLightMultiplier = 0.7;
 	int m_ithVisualizeLevel = 0; // visualize brick pool for node in ith level 
 	int m_voxelBlendMode = 0;
 	int m_brickTexType = 0;

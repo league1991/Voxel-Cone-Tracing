@@ -131,6 +131,8 @@ void Application::init() {
 	TwAddVarRW(mainTweakBar, "Direct light", TW_TYPE_BOOL8, &graphics.directLight, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Indirect diffuse light", TW_TYPE_BOOL8, &graphics.indirectDiffuseLight, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Indirect specular light", TW_TYPE_BOOL8, &graphics.indirectSpecularLight, "group=Settings");
+	TwAddVarRW(mainTweakBar, "Direct Light Multiplier", TW_TYPE_FLOAT, &graphics.directLightMultiplier, "group=Settings step=0.01");
+	TwAddVarRW(mainTweakBar, "Indirect Light Multiplier", TW_TYPE_FLOAT, &graphics.indirectLightMultiplier, "group=Settings step=0.01");
 
 	//temp = "mainsep2";
 	//TwAddSeparator(mainTweakBar, temp, NULL);

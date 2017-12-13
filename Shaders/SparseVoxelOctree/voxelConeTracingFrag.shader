@@ -23,14 +23,14 @@
 #define MIPMAP_HARDCAP 5.4f /* Too high mipmap levels => glitchiness, too low mipmap levels => sharpness. */
 #define VOXEL_SIZE (1/128.0) /* Size of a voxel. 128x128x128 => 1/128 = 0.0078125. */
 #define SHADOWS 1 /* Shadow cone tracing. */
-#define DIFFUSE_INDIRECT_FACTOR 0.52f /* Just changes intensity of diffuse indirect lighting. */
+//#define DIFFUSE_INDIRECT_FACTOR 0.52f /* Just changes intensity of diffuse indirect lighting. */
 // --------------------------------------
 // Other lighting settings.
 // --------------------------------------
 #define SPECULAR_MODE 1 /* 0 == Blinn-Phong (halfway vector), 1 == reflection model. */
 #define SPECULAR_FACTOR 4.0f /* Specular intensity tweaking factor. */
 #define SPECULAR_POWER 65.0f /* Specular power in Blinn-Phong. */
-#define DIRECT_LIGHT_INTENSITY 0.96f /* (direct) point light intensity factor. */
+//#define DIRECT_LIGHT_INTENSITY 0.96f /* (direct) point light intensity factor. */
 #define MAX_LIGHTS 1 /* Maximum number of lights supported. */
 
 // Lighting attenuation factors. See the function "attenuate" (below) for more information.
@@ -96,6 +96,8 @@ struct Settings {
 	bool shadows; // Whether shadows should be rendered or not.
 };
 
+uniform float directLightMultiplier;
+uniform float indirectLightMultiplier;
 uniform Material material;
 uniform Settings settings;
 uniform PointLight pointLights[MAX_LIGHTS];
@@ -305,7 +307,7 @@ vec3 indirectDiffuseLight() {
 		vec3 direction = xAxis * coef.x + yAxis * coef.y + zAxis * coef.z;
 		acc += weight[i] * traceDiffuseVoxelCone(origin, direction);
 	}
-	return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * material.diffuseColor;
+	return material.diffuseReflectivity * acc * material.diffuseColor;
 }
 
 vec3 indirectDiffuseLightOld(){
@@ -363,7 +365,8 @@ vec3 indirectDiffuseLightOld(){
 	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
 
 	// Return result.
-	return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
+	// return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
+	return material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
 }
 
 // Calculates indirect specular light using voxel cone tracing.
@@ -513,7 +516,7 @@ vec3 directLight(vec3 viewDirection){
 		direct += calculateDirectLight(pointLights[i], viewDirection);
 	for (uint i = 0; i < numberOfDirLights; ++i)
 		direct += calculateDirectDirLight(directionalLights[i], viewDirection);
-	direct *= DIRECT_LIGHT_INTENSITY;
+	//direct *= DIRECT_LIGHT_INTENSITY;
 	return direct;
 }
 
@@ -523,7 +526,7 @@ void main(){
 
 	// Indirect diffuse light.
 	if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
-		color.rgb += indirectDiffuseLight();
+		color.rgb += indirectLightMultiplier * indirectDiffuseLight();
 	//color += getSVOValue(worldPositionFrag, brickPool_irradiance);
 
 	//// Indirect specular light (glossy reflections).
@@ -539,7 +542,7 @@ void main(){
 
 	// Direct light.
 	if(settings.directLight)
-		color.rgb += directLight(viewDirection);
+		color.rgb += directLightMultiplier * directLight(viewDirection);
 
 //#if (GAMMA_CORRECTION == 1)
 //	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
