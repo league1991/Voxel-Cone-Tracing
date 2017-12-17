@@ -382,10 +382,11 @@ vec3 indirectSpecularLight(vec3 viewDirection){
 	const vec3 reflection = normalize(reflect(viewDirection, normal));
 	const float df = 1.0f / (1.0f + 0.25f * material.specularDiffusion); // Diffusion factor.
 	const float specularExponent = df * SPECULAR_POWER;
-	const float coneHalfAngle = 0.0043697*specularExponent*specularExponent - 0.136492*specularExponent + 1.50625;
+	const float coneHalfAngle = material.specularDiffusion * 0.5;// 0.0043697*specularExponent*specularExponent - 0.136492*specularExponent + 1.50625;
 
 	//float specularAngle = max(0, dot(reflection, lightDirection));
-	vec3 incomeSpecular = traceVoxelCone(worldPositionFrag, reflection, coneHalfAngle);
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1.1;
+	vec3 incomeSpecular = traceVoxelCone(origin, reflection, coneHalfAngle);
 	//const float specular = pow(specularAngle, specularExponent);
 	return material.specularReflectivity * material.specularColor * incomeSpecular;
 }

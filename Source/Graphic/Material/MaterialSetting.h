@@ -20,7 +20,7 @@ namespace {
 /// <summary> Represents a setting for a material that can be used along with voxel cone tracing GI. </summary>
 struct MaterialSetting {
 	glm::vec3 diffuseColor, specularColor = glm::vec3(1);
-	float specularReflectivity, diffuseReflectivity, emissivity, specularDiffusion = 2.0f;
+	float specularReflectivity, diffuseReflectivity, emissivity, specularDiffusion = 1.0f;
 	float transparency = 0.0f, refractiveIndex = 1.4f;
 
 	void Upload(GLuint program, bool useProgram = true) {
@@ -45,13 +45,14 @@ struct MaterialSetting {
 	MaterialSetting(
 		glm::vec3 _diffuseColor = glm::vec3(1),
 		float _emissivity = 0.0f,
-		float _specularReflectivity = 0.0f,
+		float _specularReflectivity = 0.5f,
 		float _diffuseReflectivity = 1.0f
 	) :
 		diffuseColor(_diffuseColor),
 		emissivity(_emissivity),
 		specularReflectivity(_specularReflectivity),
-		diffuseReflectivity(_diffuseReflectivity)
+		diffuseReflectivity(_diffuseReflectivity),
+		specularDiffusion(0.5)
 	{}
 
 	static MaterialSetting * Default() {

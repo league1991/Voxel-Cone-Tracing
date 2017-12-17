@@ -246,7 +246,7 @@ void Application::UpdateObjectTweakbar() {
 		TwAddVarRW(t, "Specular color" + i, TW_TYPE_COLOR3F, &materialSetting->specularColor, temp.c_str());
 		temp = groupName + "label='Specular reflectivity'" + " min=0 max=1 step=0.01";
 		TwAddVarRW(t, "Specular reflectivity" + i, TW_TYPE_FLOAT, &materialSetting->specularReflectivity, temp.c_str());
-		temp = groupName + "label='Specular diffusion'" + " min=1.8 max=8 step=0.10";
+		temp = groupName + "label='Specular diffusion'" + " min=0.05 max=2.0 step=0.01";
 		TwAddVarRW(t, "Specular diffusion" + i, TW_TYPE_FLOAT, &materialSetting->specularDiffusion, temp.c_str());
 
 		// Transparency.
