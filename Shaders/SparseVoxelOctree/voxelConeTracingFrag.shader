@@ -208,10 +208,10 @@ bool isInsideCube(const vec3 p, float e) { return abs(p.x) < 1 + e && abs(p.y) <
 //}	
 
 // Traces a diffuse voxel cone.
-vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
+vec3 traceVoxelCone(const vec3 from, vec3 direction, float coneHalfAngle){
 	direction = normalize(direction);
 	
-	const float CONE_SPREAD = 0.5;
+	const float coneTangent = tan(coneHalfAngle);
 
 	vec4 acc = vec4(0,0,0,1);
 
@@ -227,7 +227,7 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	while(dist < 5 && acc.a > 0.05)
 	{
 		vec3 c = from + dist * direction;
-		float radius = dist * CONE_SPREAD;
+		float radius = dist * coneTangent;
 		float levelF = float(numLevels) - 1 -log2(radius / voxelRadius);
 		levelF = clamp(levelF, 0.0, float(numLevels) - 1);
 		float lowerLevel = floor(levelF);
@@ -235,17 +235,19 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 		float weight = levelF - lowerLevel;
 
 		vec4 lowerVoxel = getSVOValue(c, brickPool_irradiance, uint(lowerLevel));
-		vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
-		vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
+		//vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
+		//vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
+		vec4 avgVoxel = lowerVoxel;
 
 		vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel),vec4(vec3(0.5),0));
-		vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
-		vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
+		//vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
+		//vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
+		vec4 avgNormalVoxel = lowerNormalVoxel;
 
 		float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
 		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
 		acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
-		dist += max(2.0 * CONE_SPREAD * dist / (1.0 - CONE_SPREAD) / nSubStep, voxelRadius*0.5);
+		dist += max(2.0 * coneTangent * dist / (1.0 - coneTangent) / nSubStep, voxelRadius*0.5);
 	}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
 	return acc.xyz;
@@ -253,7 +255,11 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 }
 
 // Traces a specular voxel cone.
-//vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
+vec3 traceSpecularVoxelCone(vec3 from, vec3 direction) {
+	return vec3(0);
+}
+//
+//vec3 traceSpecularVoxelConeOld(vec3 from, vec3 direction){
 //	direction = normalize(direction);
 //
 //	const float OFFSET = 8 * VOXEL_SIZE;
@@ -300,12 +306,13 @@ vec3 indirectDiffuseLight() {
 
 	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 0.0;
 	vec3 acc = vec3(0);
+	const float coneHalfAngle = 3.1415 / 3.0 * 0.5;
 
 	for (int i = 0; i < 6; i++)
 	{
 		vec3 coef = directionCoef[i];
 		vec3 direction = xAxis * coef.x + yAxis * coef.y + zAxis * coef.z;
-		acc += weight[i] * traceDiffuseVoxelCone(origin, direction);
+		acc += weight[i] * traceVoxelCone(origin, direction, coneHalfAngle);
 	}
 	return material.diffuseReflectivity * acc * material.diffuseColor;
 }
@@ -343,15 +350,16 @@ vec3 indirectDiffuseLightOld(){
 	const vec3 s4 = mix(normal, -ortho2, ANGLE_MIX);
 
 	// Trace front cone
-	acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal);
-	//acc += w[0] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1) * 5.0;
+	float coneHalfAngle = 3.1415 / 3.0 * 0.5;
+	acc += w[0] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * normal, normal, coneHalfAngle);
+	//acc += w[0] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1) * 5.0;
 	//return acc;// DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
 
 
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3);
-	acc += w[1] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4);
+	acc += w[1] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * ortho, s1, coneHalfAngle);
+	acc += w[1] * traceVoxelCone(C_ORIGIN - CONE_OFFSET * ortho, s2, coneHalfAngle);
+	acc += w[1] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * ortho2, s3, coneHalfAngle);
+	acc += w[1] * traceVoxelCone(C_ORIGIN - CONE_OFFSET * ortho2, s4, coneHalfAngle);
 
 	// Trace 4 corner cones.
 	const vec3 c1 = mix(normal, corner, ANGLE_MIX);
@@ -359,10 +367,10 @@ vec3 indirectDiffuseLightOld(){
 	const vec3 c3 = mix(normal, corner2, ANGLE_MIX);
 	const vec3 c4 = mix(normal, -corner2, ANGLE_MIX);
 
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3);
-	acc += w[2] * traceDiffuseVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4);
+	acc += w[2] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * corner, c1, coneHalfAngle);
+	acc += w[2] * traceVoxelCone(C_ORIGIN - CONE_OFFSET * corner, c2, coneHalfAngle);
+	acc += w[2] * traceVoxelCone(C_ORIGIN + CONE_OFFSET * corner2, c3, coneHalfAngle);
+	acc += w[2] * traceVoxelCone(C_ORIGIN - CONE_OFFSET * corner2, c4, coneHalfAngle);
 
 	// Return result.
 	// return DIFFUSE_INDIRECT_FACTOR * material.diffuseReflectivity * acc * (material.diffuseColor + vec3(0.001f));
@@ -370,10 +378,17 @@ vec3 indirectDiffuseLightOld(){
 }
 
 // Calculates indirect specular light using voxel cone tracing.
-//vec3 indirectSpecularLight(vec3 viewDirection){
-//	const vec3 reflection = normalize(reflect(viewDirection, normal));
-//	return material.specularReflectivity * material.specularColor * traceSpecularVoxelCone(worldPositionFrag, reflection);
-//}
+vec3 indirectSpecularLight(vec3 viewDirection){
+	const vec3 reflection = normalize(reflect(viewDirection, normal));
+	const float df = 1.0f / (1.0f + 0.25f * material.specularDiffusion); // Diffusion factor.
+	const float specularExponent = df * SPECULAR_POWER;
+	const float coneHalfAngle = 0.0043697*specularExponent*specularExponent - 0.136492*specularExponent + 1.50625;
+
+	//float specularAngle = max(0, dot(reflection, lightDirection));
+	vec3 incomeSpecular = traceVoxelCone(worldPositionFrag, reflection, coneHalfAngle);
+	//const float specular = pow(specularAngle, specularExponent);
+	return material.specularReflectivity * material.specularColor * incomeSpecular;
+}
 // Calculates refractive light using voxel cone tracing.
 //vec3 indirectRefractiveLight(vec3 viewDirection){
 //	const vec3 refraction = refract(viewDirection, normal, 1.0 / material.refractiveIndex);
@@ -527,11 +542,10 @@ void main(){
 	// Indirect diffuse light.
 	if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
 		color.rgb += indirectLightMultiplier * indirectDiffuseLight();
-	//color += getSVOValue(worldPositionFrag, brickPool_irradiance);
 
 	//// Indirect specular light (glossy reflections).
-	//if(settings.indirectSpecularLight && material.specularReflectivity * (1.0f - material.transparency) > 0.01f) 
-	//	color.rgb += indirectSpecularLight(viewDirection);
+	if(settings.indirectSpecularLight && material.specularReflectivity * (1.0f - material.transparency) > 0.01f) 
+		color.rgb += indirectLightMultiplier * indirectSpecularLight(viewDirection);
 
 	//// Emissivity.
 	//color.rgb += material.emissivity * material.diffuseColor;
