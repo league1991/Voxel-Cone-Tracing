@@ -379,16 +379,17 @@ vec3 indirectDiffuseLightOld(){
 
 // Calculates indirect specular light using voxel cone tracing.
 vec3 indirectSpecularLight(vec3 viewDirection){
+	const float cosVal = clamp(dot(-viewDirection, normal), 0.0, 1.0);
 	const vec3 reflection = normalize(reflect(viewDirection, normal));
 	const float df = 1.0f / (1.0f + 0.25f * material.specularDiffusion); // Diffusion factor.
 	const float specularExponent = df * SPECULAR_POWER;
 	const float coneHalfAngle = material.specularDiffusion * 0.5;// 0.0043697*specularExponent*specularExponent - 0.136492*specularExponent + 1.50625;
 
 	//float specularAngle = max(0, dot(reflection, lightDirection));
-	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1.1;
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 0;
 	vec3 incomeSpecular = traceVoxelCone(origin, reflection, coneHalfAngle);
 	//const float specular = pow(specularAngle, specularExponent);
-	return material.specularReflectivity * material.specularColor * incomeSpecular;
+	return material.specularReflectivity * material.specularColor * incomeSpecular * cosVal;
 }
 // Calculates refractive light using voxel cone tracing.
 //vec3 indirectRefractiveLight(vec3 viewDirection){
@@ -538,7 +539,7 @@ vec3 directLight(vec3 viewDirection){
 
 void main(){
 	color = vec4(0, 0, 0, 1);
-	const vec3 viewDirection = normalize(worldPositionFrag - cameraPosition);
+	vec3 viewDir = normalize(worldPositionFrag - cameraPosition);
 
 	// Indirect diffuse light.
 	if(settings.indirectDiffuseLight && material.diffuseReflectivity * (1.0f - material.transparency) > 0.01f) 
@@ -546,18 +547,18 @@ void main(){
 
 	//// Indirect specular light (glossy reflections).
 	if(settings.indirectSpecularLight && material.specularReflectivity * (1.0f - material.transparency) > 0.01f) 
-		color.rgb += indirectLightMultiplier * indirectSpecularLight(viewDirection);
+		color.rgb += indirectLightMultiplier * indirectSpecularLight(viewDir);
 
 	//// Emissivity.
 	//color.rgb += material.emissivity * material.diffuseColor;
 
 	//// Transparency
 	//if(material.transparency > 0.01f)
-	//	color.rgb = mix(color.rgb, indirectRefractiveLight(viewDirection), material.transparency);
+	//	color.rgb = mix(color.rgb, indirectRefractiveLight(viewDir), material.transparency);
 
 	// Direct light.
 	if(settings.directLight)
-		color.rgb += directLightMultiplier * directLight(viewDirection);
+		color.rgb += directLightMultiplier * directLight(viewDir);
 
 //#if (GAMMA_CORRECTION == 1)
 //	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
