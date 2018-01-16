@@ -37,6 +37,7 @@ public:
 	int program;
 	unsigned int vbo, vao, ebo; // Vertex Buffer Object, Vertex Array Object, Element Buffer Object.
 	bool meshUploaded = false;
+	int materialID;
 private:
 	static unsigned int idCounter;
 };

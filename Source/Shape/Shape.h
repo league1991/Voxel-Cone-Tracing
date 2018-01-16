@@ -5,10 +5,12 @@
 #include "Transform.h"
 #include "Mesh.h"
 
+#include "../Graphic/Material/MaterialSetting.h"
 /// <summary> A 'concatenation' of several meshes. </summary>
 class Shape {
 public:
 	std::vector<Mesh> meshes;
+	std::vector<MaterialSetting> materialSettings;
 	Shape() {}
 	~Shape() {}
 

@@ -31,3 +31,5 @@
 /Debug
 /*.csv
 /CodeGraphData
+x64/
+Release/

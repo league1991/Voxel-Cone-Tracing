@@ -18,8 +18,9 @@
 #include "External/tiny_obj_loader.h"
 #include "../Shape/VertexData.h"
 #include "../Shape/Mesh.h"
+#include "../Graphic/Material/MaterialSetting.h"
 
-Shape * ObjLoader::loadObjFile(const std::string path) {
+Shape * ObjLoader::loadObjFile(const std::string path, const std::string& mtlPath) {
 #if __UTILITY_LOG_LOADING_TIME
 	double logTimestamp = glfwGetTime();
 	double took;
@@ -31,7 +32,7 @@ Shape * ObjLoader::loadObjFile(const std::string path) {
 	Shape * result = new Shape();
 
 	std::string err;
-	if (!tinyobj::LoadObj(shapes, materials, err, path.c_str()) || shapes.size() == 0) {
+	if (!tinyobj::LoadObj(shapes, materials, err, path.c_str(), mtlPath.c_str()) || shapes.size() == 0) {
 #if __UTILITY_LOG_LOADING_TIME
 		std::cerr << "Failed to load object with path '" << path << "'. Error message:" << std::endl << err << std::endl;
 #endif
@@ -49,6 +50,10 @@ Shape * ObjLoader::loadObjFile(const std::string path) {
 
 		// Create a new mesh.
 		Mesh newMesh;
+		newMesh.materialID = 0;
+		if (shape.mesh.material_ids.size() > 0 && shape.mesh.material_ids[0] > 0)
+			newMesh.materialID = shape.mesh.material_ids[0];
+
 		auto & vertexData = newMesh.vertexData;
 		auto & indices = newMesh.indices;
 
@@ -93,6 +98,15 @@ Shape * ObjLoader::loadObjFile(const std::string path) {
 		result->meshes.push_back(newMesh);
 	}
 
+	for (const auto & material: materials)
+	{
+		MaterialSetting s;
+		s.specularColor = glm::vec3(material.specular[0], material.specular[1], material.specular[2]);
+		s.diffuseColor = glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
+		s.emissivity = (material.emission[0] + material.emission[1] + material.emission[2]) / 3.0;
+		s.refractiveIndex = material.ior;
+		result->materialSettings.push_back(s);
+	}
 #if __UTILITY_LOG_LOADING_TIME
 	took = glfwGetTime() - logTimestamp;
 	std::cout << std::setprecision(4) << " - Loading '" << path << "' took " << took << " seconds." << std::endl;

@@ -18,12 +18,22 @@ void CornellScene::init(unsigned int viewportWidth, unsigned int viewportHeight)
 	FirstPersonScene::init(viewportWidth, viewportHeight);
 
 	// Cornell box.
-	Shape * cornell = ObjLoader::loadObjFile("Assets\\Models\\cornell.obj");
+	Shape * cornell = ObjLoader::loadObjFile(
+		"Assets\\Models\\cornell_teapot.obj",
+		"Assets\\Models\\");
 	shapes.push_back(cornell);
 	for (unsigned int i = 0; i < cornell->meshes.size(); ++i) {
-		renderers.push_back(new MeshRenderer(&(cornell->meshes[i])));
+		auto& mesh = cornell->meshes[i];
+		MaterialSetting* setting = nullptr;
+		if (mesh.materialID < cornell->materialSettings.size())
+		{
+			setting = &cornell->materialSettings[mesh.materialID];
+		}
+		auto renderer = new MeshRenderer(&mesh, setting);
+		renderers.push_back(renderer);
 	}
 	for (auto & r : renderers) {
+		r->tweakable = true;
 		r->transform.position -= glm::vec3(0.00f, 0.0f, 0);
 		r->transform.scale = glm::vec3(0.995f);
 		r->transform.updateTransformMatrix();
@@ -33,20 +43,22 @@ void CornellScene::init(unsigned int viewportWidth, unsigned int viewportHeight)
 	Shape * lightSphere = ObjLoader::loadObjFile("Assets\\Models\\sphere.obj");
 	shapes.push_back(lightSphere);
 	for (unsigned int i = 0; i < lightSphere->meshes.size(); ++i) {
-		renderers.push_back(new MeshRenderer(&(lightSphere->meshes[i])));
+		auto renderer = new MeshRenderer(&(lightSphere->meshes[i]));
+		renderer->tweakable = true;
+		renderers.push_back(renderer);
 	}
 	lightSphereIndex = renderers.size() - 1;
 
 	// Cornell box.
-	renderers[0]->materialSetting = MaterialSetting::Green(); // Green wall.
-	renderers[1]->materialSetting = MaterialSetting::White(); // Floor.
-	renderers[2]->materialSetting = MaterialSetting::White(); // Roof.
-	renderers[3]->materialSetting = MaterialSetting::Red(); // Red wall.
-	renderers[4]->materialSetting = MaterialSetting::White(); // White wall.
-	renderers[5]->materialSetting = MaterialSetting::White(); // Left box.
-	renderers[5]->tweakable = true;
-	renderers[6]->materialSetting = MaterialSetting::White(); // Right box.
-	renderers[6]->tweakable = true;
+	//renderers[0]->materialSetting = MaterialSetting::Green(); // Green wall.
+	//renderers[1]->materialSetting = MaterialSetting::White(); // Floor.
+	//renderers[2]->materialSetting = MaterialSetting::White(); // Roof.
+	//renderers[3]->materialSetting = MaterialSetting::Red(); // Red wall.
+	//renderers[4]->materialSetting = MaterialSetting::White(); // White wall.
+	//renderers[5]->materialSetting = MaterialSetting::White(); // Left box.
+	//renderers[5]->tweakable = true;
+	//renderers[6]->materialSetting = MaterialSetting::White(); // Right box.
+	//renderers[6]->tweakable = true;
 
 	// Light Sphere.
 	renderers[lightSphereIndex]->materialSetting = MaterialSetting::Emissive();
