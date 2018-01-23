@@ -475,7 +475,7 @@ vec3 calculateDirectDirLight(const DirectionalLight light, const vec3 viewDirect
 	vec2 uv = vec2(xProj / halfWidth, yProj / halfHeight) * 0.5 + 0.5;
 	vec3 shadowPosWS =texture(smPosition, uv).xyz;
 	float shadowZ = dot(shadowPosWS - light.position, light.direction);
-	if (shadowZ > 0.0 && shadowZ < zProj - 0.05)
+	if (shadowZ > 0.0 && shadowZ < zProj - 0.04)
 		return vec3(0);
 
 	vec3 lightDirection = light.direction;

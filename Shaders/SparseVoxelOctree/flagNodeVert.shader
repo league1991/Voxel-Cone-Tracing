@@ -99,8 +99,8 @@ void main() {
 			for (int y = -1; y <= 1; y++) {
 				for (int z = -1; z <= 1; z++) {
 					vec3 offset = vec3(float(x), float(y), float(z));
-					vec3 neighPos = posTex + offset * nodeOffset;
-					if (all(greaterThan(neighPos, vec3(0.0))) && all(lessThan(neighPos, vec3(1.0))))
+					vec3 neighPos = clamp(posTex + offset * nodeOffset,vec3(0.0),vec3(1.0));
+					//if (all(greaterThan(neighPos, vec3(0.0))) && all(lessThan(neighPos, vec3(1.0))))
 					{
 						nodeAddress = traverseOctree_simple(neighPos, onLevel, nodeCenterPos);
 						flagNode(nodeAddress, nodeCenterPos, NODE_MASK_TAG | NODE_MASK_BRICK);

@@ -19,7 +19,7 @@ void CornellScene::init(unsigned int viewportWidth, unsigned int viewportHeight)
 
 	// Cornell box.
 	Shape * cornell = ObjLoader::loadObjFile(
-		"Assets\\Models\\cornell_teapot.obj",
+		"Assets\\Models\\cornell_teapot2.obj",
 		"Assets\\Models\\");
 	shapes.push_back(cornell);
 	for (unsigned int i = 0; i < cornell->meshes.size(); ++i) {
@@ -76,7 +76,7 @@ void CornellScene::init(unsigned int viewportWidth, unsigned int viewportHeight)
 	//pointLights.push_back(p);
 	//pointLights[0].color = glm::vec3(1.4f, 0.9f, 0.35f);
 	//pointLights[0].color = normalize(pointLights[0].color);
-	DirectionalLight d(glm::vec3(0,0.5,0), glm::vec3(0,-1,0), glm::vec3(1,0,0),1.5,1.5, glm::vec3(1,1,1));
+	DirectionalLight d(glm::vec3(0,0.5,0), glm::vec3(0,-1,0), glm::vec3(1,0,0),3.0,3.0, glm::vec3(3,3,3));
 	directionalLights.push_back(d);
 }
 
@@ -97,6 +97,7 @@ void CornellScene::update() {
 	//pointLights[0].position.x *= 4.5f;
 	//pointLights[0].position.z = pointLights[0].position.z * 4.5f;
 	directionalLights[0].m_direction = glm::vec3(0.5*sinf(float(Time::time * 0.3)), -1, 0.5*cosf(float(Time::time * 0.3)));
+	directionalLights[0].m_position = glm::vec3(0.5*sinf(float(Time::time * 0.3)), 3.0, 0.5*cosf(float(Time::time * 0.5)));
 	glm::normalize(directionalLights[0].m_direction);
 	renderers[lightSphereIndex]->materialSetting->diffuseColor = directionalLights[0].m_color;
 }

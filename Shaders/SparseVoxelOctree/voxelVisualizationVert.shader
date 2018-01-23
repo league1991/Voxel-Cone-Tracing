@@ -17,9 +17,9 @@ layout(r32ui) uniform uimage3D voxelFragTex_color;
 uniform uint voxelTexSize;
 uniform mat4 voxelGridTransform;
 
-const float levelTexSize[] = {1.0,       1 / 2.0,  1 / 4.0,  1 / 8.0,
-                              1 / 16.0,  1 / 32.0, 1 / 64.0, 1 / 128.0,
-                              1 / 256.0, 1 / 512.0};
+const float levelTexSize[] = {1.0,   2.0,  4.0,  8.0,
+                              16.0,  32.0, 64.0, 128.0,
+                              256.0, 512.0};
 
 out VertexData{
 	vec4 posWorldSpace;
@@ -61,9 +61,9 @@ void main(){
 	// Get position
 	uvec4 positionU = imageLoad(voxelFragList_position, int(gl_VertexID));
 	uvec3 baseVoxel = uintXYZ10ToVec3(positionU.x);
-	vec3 posTexSpace = vec3(baseVoxel) / float(voxelTexSize);
-	uvec3 posTexSpacei = uvec3(posTexSpace / levelTexSize[level+1]);
-	posTexSpace = vec3(posTexSpacei) * levelTexSize[level+1];
+	vec3 posTexSpace = vec3(baseVoxel) / float(voxelTexSize); // = [0,1]
+	uvec3 posTexSpacei = uvec3(posTexSpace * levelTexSize[level+1]);
+	posTexSpace = vec3(posTexSpacei) / levelTexSize[level+1];
 
 	Out.posWorldSpace = voxelGridTransform * vec4(posTexSpace, 1.0);
 
