@@ -219,7 +219,7 @@ vec3 traceVoxelCone(const vec3 from, vec3 direction, float coneHalfAngle){
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
 	float voxelRadius = length(voxelSize);
-	float dist = voxelRadius * 1.7;// 0.02;// 0.1953125;
+	float dist = voxelRadius * 8;// 0.02;// 0.1953125;
 
 	// Trace.
 	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
