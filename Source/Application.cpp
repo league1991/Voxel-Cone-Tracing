@@ -128,6 +128,8 @@ void Application::init() {
 	TwAddSeparator(mainTweakBar, temp, NULL);
 	TwAddVarRW(mainTweakBar, "Shadows", TW_TYPE_BOOL8, &graphics.shadows, "group=Settings");
 	TwAddVarRW(mainTweakBar, "Update Scene", TW_TYPE_BOOL8, &graphics.updateScene, "group=Settings");
+	TwAddVarRW(mainTweakBar, "Voxelize", TW_TYPE_BOOL8, &graphics.buildSVO, "group=Settings");
+	TwAddVarRW(mainTweakBar, "Inject Light", TW_TYPE_BOOL8, &graphics.injectLight, "group=Settings");
 	graphics.lightDirection = glm::vec3(0,-1,0);
 	TwAddVarRW(mainTweakBar, "LightDir", TW_TYPE_DIR3F, &graphics.lightDirection,
 		" label='Light direction' axisz=z help='Change the light direction.' ");

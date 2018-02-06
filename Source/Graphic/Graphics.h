@@ -46,6 +46,8 @@ public:
 	bool indirectSpecularLight = true;
 	bool directLight = true;
 	bool updateScene = true;
+	bool buildSVO = true;
+	bool injectLight = true;
 	glm::vec3 lightDirection;
 	float directLightMultiplier = 1.0;
 	float indirectLightMultiplier = 0.2;

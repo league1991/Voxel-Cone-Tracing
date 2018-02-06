@@ -45,8 +45,14 @@ void Graphics::render(Scene & renderingScene, unsigned int viewportWidth, unsign
 	//	ticksSinceLastVoxelization = 0;
 	//	voxelizationQueued = false;
 	//}
-	sparseVoxelize(renderingScene, true);
-	lightUpdate(renderingScene, true);
+	if (buildSVO)
+	{
+		sparseVoxelize(renderingScene, true);
+	}
+	if (injectLight)
+	{
+		lightUpdate(renderingScene, true);
+	}
 
 	// Render.
 	switch (renderingMode) {
