@@ -48,7 +48,7 @@ public:
 	bool updateScene = true;
 	glm::vec3 lightDirection;
 	float directLightMultiplier = 1.0;
-	float indirectLightMultiplier = 0.7;
+	float indirectLightMultiplier = 0.2;
 	int m_ithVisualizeLevel = 0; // visualize brick pool for node in ith level 
 	int m_voxelBlendMode = 0;
 	int m_brickTexType = 0;

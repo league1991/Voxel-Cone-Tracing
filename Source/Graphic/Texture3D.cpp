@@ -3,7 +3,7 @@
 #include <vector>
 
 Texture3D::Texture3D(const std::vector<GLfloat> & textureBuffer, const int _width, const int _height, const int _depth, const bool generateMipmaps) :
-	width(_width), height(_height), depth(_depth), clearData(4 * _width * _height * _depth, 0.0f)
+	width(_width), height(_height), depth(_depth)//, clearData(4 * _width * _height * _depth, 0.0f)
 {
 	// Generate texture on GPU.
 	glGenTextures(1, &textureID);
@@ -29,7 +29,7 @@ Texture3D::Texture3D(const std::vector<GLfloat> & textureBuffer, const int _widt
 
 Texture3D::Texture3D(const int _width, const int _height, const int _depth, const bool generateMipmaps,
 	GLint internalFormat, GLint externalFormat) :
-	width(_width), height(_height), depth(_depth), clearData(4 * _width * _height * _depth, 0.0f)
+	width(_width), height(_height), depth(_depth)//, clearData(4 * _width * _height * _depth, 0.0f)
 {
 	// Generate texture on GPU.
 	glGenTextures(1, &textureID);

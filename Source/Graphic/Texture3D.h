@@ -31,5 +31,5 @@ public:
 	);
 private:
 	int width, height, depth;
-	std::vector<GLfloat> clearData;
+	//std::vector<GLfloat> clearData;
 };

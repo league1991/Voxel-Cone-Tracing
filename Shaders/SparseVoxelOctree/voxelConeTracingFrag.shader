@@ -219,22 +219,27 @@ vec3 traceVoxelCone(const vec3 from, vec3 direction, float coneHalfAngle){
 	// Controls bleeding from close surfaces.
 	// Low values look rather bad if using shadow cone tracing.
 	// Might be a better choice to use shadow maps and lower this value.
-	float voxelRadius = length(voxelSize);
-	float dist = voxelRadius * 8;// 0.02;// 0.1953125;
+	float voxelLength = max(max(voxelSize.x, voxelSize.y), voxelSize.z);
+	//float dist = voxelRadius * 8;// 0.02;// 0.1953125;
 
 	// Trace.
 	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
 	float nSubStep = 2.0;
-	float radius = voxelRadius * 0.5;
+	float radius = voxelLength * 0.5;
 	for (uint i = 0; i < numLevels && acc.a > 0.05; i++, radius *= 2)
 	{
-		dist = radius / coneSin;
+		float dist = radius / coneSin;
 		vec3 c = from + dist * direction;
 		vec4 irradianceVoxel = getSVOValue(c, brickPool_irradiance, numLevels - i);
 		vec4 normalVoxel = getSVOValue(c, brickPool_normal, numLevels - i, vec4(vec3(0.5), 0));
 		float normalWeight = clamp(dot((normalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
-		acc.a *= 1.0 - irradianceVoxel.a;
-		acc.xyz += irradianceVoxel.xyz * acc.a * normalWeight;
+
+		float depthVoxels = dist * (1 - coneSin) / voxelLength;
+		float trans0 = clamp(1 - irradianceVoxel.a, 0, 1) + 0.01;
+		float transN = pow(trans0, depthVoxels);
+		float colorFactor = trans0 * (1 - transN) / (1 - trans0);
+		acc.xyz += irradianceVoxel.xyz * acc.a * normalWeight * colorFactor;
+		acc.a *= transN;
 	}
 	//while(dist < 5 && acc.a > 0.05)
 	//{
@@ -306,10 +311,6 @@ vec3 indirectDiffuseLight() {
 		normalize(vec3(0, 0, 1)),       normalize(vec3(1,0,0.83)),
 		normalize(vec3(0.31,0.95,0.83)),  normalize(vec3(0.31,-0.95,0.83)),
 		normalize(vec3(-0.81,0.58,0.83)), normalize(vec3(-0.81,-0.58,0.83)),
-	};
-
-	const float weight[6] = {
-		0.25,0.15,0.15,0.15,0.15,0.15,
 	};
 
 	const float coneAngle[6] = {
