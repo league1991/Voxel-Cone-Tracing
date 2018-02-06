@@ -96,8 +96,10 @@ void CornellScene::update() {
 	//pointLights[0].position = glm::vec3(0, 0.5, 0.1) + r * 0.1f;// renderers[lightSphereIndex]->transform.position;
 	//pointLights[0].position.x *= 4.5f;
 	//pointLights[0].position.z = pointLights[0].position.z * 4.5f;
-	directionalLights[0].m_direction = glm::vec3(0.5*sinf(float(Time::time * 0.3)), -1, 0.5*cosf(float(Time::time * 0.3)));
-	directionalLights[0].m_position = glm::vec3(0.5*sinf(float(Time::time * 0.3)), 3.0, 0.5*cosf(float(Time::time * 0.5)));
+	//directionalLights[0].m_direction = glm::vec3(0.5*sinf(float(Time::time * 0.3)), -1, 0.5*cosf(float(Time::time * 0.3)));
+	//directionalLights[0].m_position = glm::vec3(0.5*sinf(float(Time::time * 0.3)), 3.0, 0.5*cosf(float(Time::time * 0.5)));
+	directionalLights[0].m_direction = Application::getInstance().graphics.lightDirection;
+	directionalLights[0].m_position = glm::vec3(0, 1, 1);
 	glm::normalize(directionalLights[0].m_direction);
 	renderers[lightSphereIndex]->materialSetting->diffuseColor = directionalLights[0].m_color;
 }

@@ -212,6 +212,7 @@ vec3 traceVoxelCone(const vec3 from, vec3 direction, float coneHalfAngle){
 	direction = normalize(direction);
 	
 	const float coneTangent = tan(coneHalfAngle);
+	const float coneSin = sin(coneHalfAngle);
 
 	vec4 acc = vec4(0,0,0,1);
 
@@ -224,31 +225,42 @@ vec3 traceVoxelCone(const vec3 from, vec3 direction, float coneHalfAngle){
 	// Trace.
 	//return getSVOValue(from + direction * dist, brickPool_irradiance, uint(2)).xyz * 0.5;
 	float nSubStep = 2.0;
-	while(dist < 5 && acc.a > 0.05)
+	float radius = voxelRadius * 0.5;
+	for (uint i = 0; i < numLevels && acc.a > 0.05; i++, radius *= 2)
 	{
+		dist = radius / coneSin;
 		vec3 c = from + dist * direction;
-		float radius = dist * coneTangent;
-		float levelF = float(numLevels) - 1 -log2(radius / voxelRadius);
-		levelF = clamp(levelF, 0.0, float(numLevels) - 1);
-		float lowerLevel = floor(levelF);
-		float upperLevel = ceil(levelF);
-		float weight = levelF - lowerLevel;
-
-		vec4 lowerVoxel = getSVOValue(c, brickPool_irradiance, uint(lowerLevel));
-		//vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
-		//vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
-		vec4 avgVoxel = lowerVoxel;
-
-		vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel),vec4(vec3(0.5),0));
-		//vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
-		//vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
-		vec4 avgNormalVoxel = lowerNormalVoxel;
-
-		float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
-		acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
-		acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
-		dist += max(2.0 * coneTangent * dist / (1.0 - coneTangent) / nSubStep, voxelRadius*0.5);
+		vec4 irradianceVoxel = getSVOValue(c, brickPool_irradiance, numLevels - i);
+		vec4 normalVoxel = getSVOValue(c, brickPool_normal, numLevels - i, vec4(vec3(0.5), 0));
+		float normalWeight = clamp(dot((normalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
+		acc.a *= 1.0 - irradianceVoxel.a;
+		acc.xyz += irradianceVoxel.xyz * acc.a * normalWeight;
 	}
+	//while(dist < 5 && acc.a > 0.05)
+	//{
+	//	vec3 c = from + dist * direction;
+	//	float radius = dist * coneTangent;
+	//	float levelF = float(numLevels) - 1 -log2(radius / voxelRadius);
+	//	levelF = clamp(levelF, 0.0, float(numLevels) - 1);
+	//	float lowerLevel = floor(levelF);
+	//	float upperLevel = ceil(levelF);
+	//	float weight = levelF - lowerLevel;
+
+	//	vec4 lowerVoxel = getSVOValue(c, brickPool_irradiance, uint(lowerLevel));
+	//	//vec4 upperVoxel = getSVOValue(c, brickPool_irradiance, uint(upperLevel));
+	//	//vec4 avgVoxel = mix(lowerVoxel, upperVoxel, weight);
+	//	vec4 avgVoxel = lowerVoxel;
+
+	//	vec4 lowerNormalVoxel = getSVOValue(c, brickPool_normal, uint(lowerLevel),vec4(vec3(0.5),0));
+	//	//vec4 upperNormalVoxel = getSVOValue(c, brickPool_normal, uint(upperLevel),vec4(vec3(0.5),0));
+	//	//vec4 avgNormalVoxel = mix(lowerNormalVoxel, upperNormalVoxel, weight);
+	//	vec4 avgNormalVoxel = lowerNormalVoxel;
+
+	//	float normalWeight = 1.0;// clamp(dot((avgNormalVoxel.xyz - 0.5) * 2.0, direction) * -1.0, 0.0, 1.0);
+	//	acc.a *= pow(1.0 - avgVoxel.a, 1.0 / nSubStep);
+	//	acc.xyz += avgVoxel.xyz * acc.a / nSubStep;
+	//	dist += max(2.0 * coneTangent * dist / (1.0 - coneTangent) / nSubStep, voxelRadius*0.5);
+	//}
 	//acc = getSVOValue(from, brickPool_irradiance, 4);
 	return acc.xyz;
 	//return pow(acc.rgb * 2.0, vec3(1.5));
@@ -291,28 +303,33 @@ vec3 traceSpecularVoxelCone(vec3 from, vec3 direction) {
 // more aliasing and bad blur.
 vec3 indirectDiffuseLight() {
 	const vec3 directionCoef[6] = {
-		vec3(0, 0, 1),        vec3(0,0.87,0.5),
-		vec3(0.82,0.27,0.5),  vec3(0.51,-0.7,0.5),
-		vec3(-0.51,-0.7,0.5), vec3(-0.82,0.27,0.5),
+		normalize(vec3(0, 0, 1)),       normalize(vec3(1,0,0.83)),
+		normalize(vec3(0.31,0.95,0.83)),  normalize(vec3(0.31,-0.95,0.83)),
+		normalize(vec3(-0.81,0.58,0.83)), normalize(vec3(-0.81,-0.58,0.83)),
 	};
 
 	const float weight[6] = {
 		0.25,0.15,0.15,0.15,0.15,0.15,
 	};
 
+	const float coneAngle[6] = {
+		60,40,40,40,40,40,
+	};
+
 	const vec3 xAxis = normalize(orthogonal(normal));
 	const vec3 yAxis = normalize(cross(xAxis, normal));
 	const vec3 zAxis = normal;
 
-	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 0.0;
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1.0;
 	vec3 acc = vec3(0);
-	const float coneHalfAngle = 3.1415 / 3.0 * 0.5;
 
 	for (int i = 0; i < 6; i++)
 	{
 		vec3 coef = directionCoef[i];
+		const float coneHalfAngle = coneAngle[i] / 180 * 3.1415;
 		vec3 direction = xAxis * coef.x + yAxis * coef.y + zAxis * coef.z;
-		acc += weight[i] * traceVoxelCone(origin, direction, coneHalfAngle);
+		float solidAngle = 2 * 3.14 * (1 - cos(coneHalfAngle));
+		acc += traceVoxelCone(origin, direction, coneHalfAngle) * coef.z * solidAngle;
 	}
 	return material.diffuseReflectivity * acc * material.diffuseColor;
 }
@@ -386,7 +403,7 @@ vec3 indirectSpecularLight(vec3 viewDirection){
 	const float coneHalfAngle = material.specularDiffusion * 0.5;// 0.0043697*specularExponent*specularExponent - 0.136492*specularExponent + 1.50625;
 
 	//float specularAngle = max(0, dot(reflection, lightDirection));
-	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 0;
+	const vec3 origin = worldPositionFrag + normal * length(voxelSize) * 1;
 	vec3 incomeSpecular = traceVoxelCone(origin, reflection, coneHalfAngle);
 	//const float specular = pow(specularAngle, specularExponent);
 	return material.specularReflectivity * material.specularColor * incomeSpecular * cosVal;

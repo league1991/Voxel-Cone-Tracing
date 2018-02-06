@@ -46,6 +46,7 @@ public:
 	bool indirectSpecularLight = true;
 	bool directLight = true;
 	bool updateScene = true;
+	glm::vec3 lightDirection;
 	float directLightMultiplier = 1.0;
 	float indirectLightMultiplier = 0.7;
 	int m_ithVisualizeLevel = 0; // visualize brick pool for node in ith level 
